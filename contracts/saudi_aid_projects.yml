@@ -1,0 +1,59 @@
+contract: raw_saudi_aid_projects
+version: 1
+owner: source-lane
+
+grain: one published aid-project record within one dataset release
+
+natural_key: none
+
+columns:
+  project_title:
+    type: STRING
+    required: true
+
+  project_status:
+    type: STRING
+    required: true
+
+  project_sector:
+    type: STRING
+    required: true
+
+  project_location:
+    type: STRING
+    required: true
+
+  total_cost:
+    type: STRING
+    required: true
+
+  donor_entity:
+    type: STRING
+    required: true
+
+  beneficiary_country:
+    type: STRING
+    required: true
+
+  release_code:
+    type: STRING
+    required: true
+
+  release_date:
+    type: DATE
+    required: true
+
+  source_file:
+    type: STRING
+    required: true
+
+  ingested_at:
+    type: TIMESTAMP
+    required: true
+
+rules:
+  - Preserve all original source records in the raw layer.
+  - Allow exact duplicates in the raw layer.
+  - Do not require a project ID because the source does not provide a reliable one.
+  - Standardize source column names during ingestion.
+  - Convert total_cost to numeric only in the cleaned transformation layer.

@@ -1,0 +1,60 @@
+contract: fct_aid_projects
+version: 1
+owner: warehouse-lane
+
+grain: one cleaned aid-project record within one dataset release
+
+columns:
+  record_id:
+    type: STRING
+    required: true
+    unique: true
+
+  project_title:
+    type: STRING
+    required: true
+
+  project_status:
+    type: STRING
+    required: true
+
+  project_sector:
+    type: STRING
+    required: true
+
+  project_location:
+    type: STRING
+    required: true
+
+  total_cost_usd:
+    type: NUMERIC
+    required: true
+    min: 0
+
+  donor_entity:
+    type: STRING
+    required: true
+
+  beneficiary_country:
+    type: STRING
+    required: true
+
+  release_code:
+    type: STRING
+    required: true
+
+  release_date:
+    type: DATE
+    required: true
+
+rules:
+  - Exact duplicate rows are removed within each release.
+  - Original raw records remain unchanged in the raw layer.
+  - total_cost_usd must be numeric and non-negative.
+  - Column names are standardized across releases.
+  - Categorical values are standardized before analytical use.
+  - Metrics must be calculated within a selected release unless explicitly comparing releases.
+
+consumers:
+  - Streamlit dashboard
+  - Analytical queries
