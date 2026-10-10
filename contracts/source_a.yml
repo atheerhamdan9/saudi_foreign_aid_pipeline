@@ -1,0 +1,67 @@
+schema_version: 1
+
+dataset: source_a
+source: Saudi Open Data Portal
+format: csv
+
+description: >
+  Standardized schema for the Saudi Foreign Aid Projects dataset.
+  Source column names and relevant categorical values are normalized
+  during transformation.
+
+snapshots:
+  - "2025-10"
+  - "2025-12"
+  - "2026-03"
+
+expected_column_count: 7
+
+grain:
+  description: >
+    Each row represents a source record associated with a Saudi foreign
+    aid project. The final record grain has not yet been confirmed.
+  primary_key: null
+
+
+columns:
+  - name: project_title
+    source_name_ar: "عنوان المشروع"
+    type: string
+    nullable: false
+
+  - name: project_status
+    source_name_ar: "حالة المشروع"
+    type: string
+    nullable: false
+
+  - name: project_sector
+    source_name_ar: "قطاع المشروع"
+    type: string
+    nullable: false
+
+  - name: project_location
+    source_name_ar: "موقع المشروع"
+    type: string
+    nullable: false
+
+  - name: total_cost_usd
+    source_name_ar: "مجموع التكاليف $"
+    source_column_name_varies_across_snapshots: true
+    type: number
+    nullable: false
+
+  - name: project_donor
+    source_name_ar: "الجهة المانحة للمشروع"
+    type: string
+    nullable: false
+
+  - name: beneficiary_country
+    source_name_ar: "الدولة المستفيدة"
+    type: string
+    nullable: false
+
+data_quality:
+  allow_exact_duplicates_in_raw: true
+  remove_exact_duplicates_in_analytical_layer: true
+  require_unique_primary_key: false
+

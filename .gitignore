@@ -219,3 +219,14 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 data/raw/*.csv
+
+# Local datasets and generated outputs
+data/raw/*
+!data/raw/.gitkeep
+!data/raw/source_a/
+data/raw/source_a/*
+!data/raw/source_a/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/output/*
+!data/output/.gitkeep
