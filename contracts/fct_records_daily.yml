@@ -1,0 +1,52 @@
+schema_version: 1
+
+dataset: fct_records_by_snapshot
+
+description: >
+  Analytical summaries of Saudi foreign aid records by beneficiary
+  country, project sector, project donor, and project status.
+  Each source snapshot is analyzed separately.
+
+grain:
+  description: >
+    One row per source snapshot, dimension type, and dimension value.
+  primary_key:
+    - snapshot_month
+    - dimension_type
+    - dimension_value
+
+columns:
+  - name: snapshot_month
+    type: string
+    nullable: false
+    description: Source snapshot month in YYYY-MM format.
+
+  - name: dimension_type
+    type: string
+    nullable: false
+    allowed_values:
+      - beneficiary_country
+      - project_sector
+      - project_donor
+      - project_status
+    description: Dimension used to group source records.
+
+  - name: dimension_value
+    type: string
+    nullable: false
+    description: Country, sector, donor, or project status value.
+
+  - name: record_count
+    type: integer
+    nullable: false
+    description: Number of source records in the group after deduplication.
+
+  - name: total_cost_usd
+    type: number
+    nullable: false
+    description: Sum of reported project costs in USD for the group.
+
+data_quality:
+  exact_duplicates_removed_before_aggregation: true
+  snapshots_aggregated_separately: true
+  project_title_and_total_cost_are_unique: false
