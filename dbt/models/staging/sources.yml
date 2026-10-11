@@ -1,0 +1,7 @@
+﻿version: 2
+
+sources:
+  - name: source_a
+    schema: main
+    tables:
+      - name: cleaned_source_a_records

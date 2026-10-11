@@ -1,0 +1,14 @@
+﻿name: 'saudi_foreign_aid'
+version: '1.0.0'
+config-version: 2
+
+profile: 'saudi_foreign_aid'
+
+model-paths: ['models']
+
+models:
+  saudi_foreign_aid:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

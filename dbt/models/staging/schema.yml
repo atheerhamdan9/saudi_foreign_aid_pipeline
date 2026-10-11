@@ -1,0 +1,38 @@
+
+version: 2
+
+models:
+  - name: stg_source_a__records
+    description: "Cleaned Saudi foreign aid records prepared for analytical models."
+    columns:
+      - name: project_title
+        data_tests:
+          - not_null
+
+      - name: project_status
+        data_tests:
+          - not_null
+
+      - name: project_sector
+        data_tests:
+          - not_null
+
+      - name: project_location
+        data_tests:
+          - not_null
+
+      - name: total_cost_usd
+        data_tests:
+          - not_null
+
+      - name: project_donor
+        data_tests:
+          - not_null
+
+      - name: beneficiary_country
+        data_tests:
+          - not_null
+
+      - name: snapshot_month
+        data_tests:
+          - not_null

@@ -1,0 +1,33 @@
+﻿
+version: 2
+
+models:
+  - name: fct_records_by_snapshot
+    description: "Aggregated aid metrics by snapshot and dimension."
+    columns:
+      - name: snapshot_month
+        data_tests:
+          - not_null
+
+      - name: dimension_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - beneficiary_country
+                  - project_sector
+                  - project_donor
+                  - project_status
+
+      - name: dimension_value
+        data_tests:
+          - not_null
+
+      - name: record_count
+        data_tests:
+          - not_null
+
+      - name: total_cost_usd
+        data_tests:
+          - not_null

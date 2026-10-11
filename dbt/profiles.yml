@@ -1,0 +1,8 @@
+﻿saudi_foreign_aid:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('DUCKDB_PATH', 'data/processed/dev.duckdb') }}"
+      schema: dbt_dev
+      threads: 4
