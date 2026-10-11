@@ -8,33 +8,37 @@ The pipeline currently runs locally on one laptop using Python, Pandas, and Duck
 flowchart TD
     A["Source A CSV snapshots"]
     B["Local raw files"]
-    C["Python Pipeline CLI"]
-    D["DuckDB raw_source_a_records"]
-    E["DuckDB cleaned_source_a_records"]
-    F["DuckDB fct_records_daily"]
-    G["Cleaned Parquet"]
-    H["Metrics CSV"]
-    I["Business stakeholder"]
+    C["Python Pipeline CLI<br/>Read and standardize columns"]
+    D["Assign sequential record numbers"]
+    E["DuckDB: raw_source_a_records"]
+    F["Clean and validate records<br/>Remove exact duplicates by source columns"]
+    G["DuckDB: cleaned_source_a_records"]
+    H["DuckDB: fct_records_daily"]
+    I["Cleaned Parquet"]
+    J["Metrics CSV"]
+    K["Business stakeholder"]
 
     A --> B
     B --> C
     C --> D
-    C --> E
-    E --> F
-    E --> G
-    F --> H
-    H --> I
+    D --> E
+    D --> F
+    F --> G
+    G --> H
+    G --> I
+    H --> J
+    J --> K
 ```
 
 ## Data flow
 
-1. Source CSV files are placed in the local raw-data directory.
-2. The Python CLI reads the files and standardizes Arabic column names.
-3. The pipeline derives `snapshot_month` from each source filename.
-4. Raw and cleaned records are loaded into DuckDB.
-5. Exact duplicate records are removed within each snapshot only.
-6. Metrics are aggregated separately by snapshot, beneficiary country, project sector, project donor, and project status.
-7. Cleaned records are exported to Parquet, and metrics are exported to CSV.
+1. Source CSV files are staged in the local raw-data directory.
+2. The Python CLI reads the files and standardizes the Arabic column names.
+3. The pipeline sorts the snapshots chronologically and assigns a sequential `record` number to every source row before cleaning.
+4. All numbered source rows are preserved in the raw layer in DuckDB.
+5. The pipeline validates and cleans the source fields, removes exact duplicates within each snapshot using the seven source columns, and preserves the original `record` number of each retained row.
+6. Cleaned records are stored in DuckDB and exported to Parquet.
+7. Analytical metrics are aggregated by snapshot, beneficiary country, project sector, donor entity, and project status, then exported to CSV.
 
 ## Snapshot handling
 

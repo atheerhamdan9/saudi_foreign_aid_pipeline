@@ -85,3 +85,56 @@ def test_full_pipeline_loads_duckdb_and_exports_metrics(tmp_path):
 
     assert len(metrics) == 7
     assert {row["snapshot_month"] for row in metrics} == {"2025-10"}
+
+def test_record_numbers_continue_across_snapshots(tmp_path):
+    import shutil
+    from datetime import date
+
+    from pipeline.cli import run_snapshot_pipeline
+    from pipeline.io.warehouse import read_table
+
+    source_root = tmp_path / "raw" / "source_a"
+    ingest_dir = source_root / "ingest_date=2026-10-11"
+    ingest_dir.mkdir(parents=True)
+
+    filenames = [
+        "Saudi foreign aid projects 25M10.csv",
+        "Saudi foreign aid projects 25M12.csv",
+        "Saudi foreign aid projects 26M03.csv",
+    ]
+
+    for filename in filenames:
+        shutil.copyfile(FIXTURE_PATH, ingest_dir / filename)
+
+    database_path = tmp_path / "processed" / "dev.duckdb"
+    output_path = tmp_path / "output" / "fct_records_daily.csv"
+
+    result = run_snapshot_pipeline(
+        date(2026, 10, 11),
+        source_root=source_root,
+        db_path=database_path,
+        output_path=output_path,
+    )
+
+    raw = read_table("raw_source_a_records", db_path=database_path)
+    cleaned = read_table(
+        "cleaned_source_a_records",
+        db_path=database_path,
+    )
+
+    assert result["records_read"] == 9
+    assert result["records_cleaned"] == 6
+
+    # All source rows receive sequential numbers before deduplication.
+    assert sorted(raw["record"].tolist()) == list(range(1, 10))
+
+    # The duplicate rows are removed, but surviving numbers are preserved.
+    assert sorted(cleaned["record"].tolist()) == [1, 2, 4, 5, 7, 8]
+
+    assert set(cleaned["snapshot_month"]) == {
+        "2025-10",
+        "2025-12",
+        "2026-03",
+    }
+
+    assert result["metric_rows"] == 21
