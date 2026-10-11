@@ -13,3 +13,5 @@ PROCESSED_DATA_DIR = DATA_DIR / "processed"
 OUTPUT_DIR = DATA_DIR / "output"
 
 CONTRACTS_DIR = PROJECT_ROOT / "contracts"
+
+WAREHOUSE_PATH = PROCESSED_DATA_DIR / "dev.duckdb"

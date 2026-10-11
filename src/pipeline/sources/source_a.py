@@ -23,8 +23,9 @@ EXPECTED_COLUMNS = {
 
 
 def _normalize_header(header: str) -> str:
-    """Remove extra whitespace and a possible byte-order mark."""
-    return " ".join(header.replace("\ufeff", "").strip().split())
+    """Normalize whitespace, underscores, and a possible byte-order mark."""
+    normalized = header.replace("\ufeff", "").replace("_", " ")
+    return " ".join(normalized.strip().split())
 
 
 def _map_source_columns(source_headers: list[str]) -> dict[str, str]:
