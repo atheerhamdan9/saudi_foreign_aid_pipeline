@@ -13,6 +13,8 @@ dependencies = [
     "pyarrow>=17.0",
     "duckdb>=1.1",
     "PyYAML>=6.0",
+    "google-cloud-storage>=2.18,<4.0",
+    "google-cloud-bigquery>=3.25,<4.0",
 ]
 
 [project.optional-dependencies]
