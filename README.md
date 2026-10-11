@@ -64,3 +64,22 @@ kept in the repository so tests can run without the original dataset.
 The current implementation reads locally staged CSV files. Automated fetching
 from a public API has not yet been implemented. The definitive source business
 key and analytical aggregation rules remain subject to team review.
+
+
+## Sequential record numbering
+
+The pipeline assigns a sequential `record` number to every source row
+after reading the CSV snapshots and before removing duplicates.
+
+Snapshots are processed chronologically:
+- October 2025: records 1–8,371
+- December 2025: records 8,372–16,786
+- March 2026: records 16,787–25,588
+
+The numbering includes duplicate rows in the raw data. During cleaning,
+exact duplicates are identified using the seven standardized source
+columns, not the `record` number. The retained row keeps its original
+record number, so gaps in the cleaned record sequence are expected.
+
+The `record` column is a sequential source-row reference, not a unique
+identifier for an aid project across snapshots.

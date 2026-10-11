@@ -102,14 +102,17 @@ def transform_records(
     return transformed
 
 
+
+
 def clean_records(
     raw: pd.DataFrame,
     snapshot_month: str,
 ) -> pd.DataFrame:
-    """Clean one source snapshot and preserve its identity.
+    """Clean one source snapshot while preserving original record numbers.
 
-    Exact duplicates are removed only within this snapshot. Call this
-    function separately for each source file.
+    Exact duplicates are removed only within this snapshot.
+    Record numbers are assigned before cleaning and are not renumbered
+    after duplicate rows are removed.
     """
     if not isinstance(raw, pd.DataFrame):
         raise TypeError("raw must be a pandas DataFrame")
@@ -131,7 +134,30 @@ def clean_records(
     if parsed_month.strftime("%Y-%m") != snapshot_month:
         raise ValueError("snapshot_month must use YYYY-MM format")
 
-    cleaned = raw.loc[:, SOURCE_COLUMNS].copy()
+    record_columns = ["record"] if "record" in raw.columns else []
+    cleaned = raw.loc[:, record_columns + SOURCE_COLUMNS].copy()
+
+    if record_columns:
+        record_values = pd.to_numeric(
+            cleaned["record"], errors="coerce"
+        )
+        valid_integers = record_values.map(
+            lambda value: (
+                pd.notna(value) and float(value).is_integer()
+            )
+        )
+
+        if (
+            record_values.isna().any()
+            or not valid_integers.all()
+            or (record_values < 1).any()
+            or record_values.duplicated().any()
+        ):
+            raise ValueError(
+                "record must contain unique positive integers"
+            )
+
+        cleaned["record"] = record_values.astype("int64")
 
     for column in TEXT_COLUMNS:
         cleaned[column] = cleaned[column].map(
@@ -163,14 +189,13 @@ def clean_records(
 
     cleaned["total_cost_usd"] = costs
 
-    # Normalize first, then deduplicate inside this snapshot only.
+    # Deduplicate using the original project columns, not the record number.
     cleaned = cleaned.drop_duplicates(
         subset=SOURCE_COLUMNS
     ).reset_index(drop=True)
 
     cleaned["snapshot_month"] = snapshot_month
-    return cleaned[SOURCE_COLUMNS + ["snapshot_month"]]
-
+    return cleaned[record_columns + SOURCE_COLUMNS + ["snapshot_month"]]
 
 def build_metrics(cleaned: pd.DataFrame) -> pd.DataFrame:
     """Aggregate cleaned records to the fct_records_daily contract grain."""

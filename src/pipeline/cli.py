@@ -15,7 +15,7 @@ from pipeline.config import (
     WAREHOUSE_PATH,
 )
 from pipeline.contracts import load_contract
-from pipeline.io.warehouse import read_table, upsert_snapshots
+from pipeline.io.warehouse import load, read_table, upsert_snapshots
 from pipeline.metrics import write_metrics
 from pipeline.sources.source_a import read_source_a
 from pipeline.transform import (
@@ -45,6 +45,33 @@ def _snapshot_month_from_filename(path: Path) -> str:
 
     return date(year, month, 1).strftime("%Y-%m")
 
+def _needs_record_schema_migration(
+    table: str,
+    incoming: pd.DataFrame,
+    db_path: Path,
+) -> bool:
+    """Check whether an existing table needs the new record column."""
+    try:
+        existing = read_table(table, db_path=db_path)
+    except (FileNotFoundError, ValueError):
+        return False
+
+    if "record" not in incoming.columns or "record" in existing.columns:
+        return False
+
+    existing_months = set(existing["snapshot_month"].dropna().astype(str))
+    incoming_months = set(incoming["snapshot_month"].dropna().astype(str))
+
+    if not existing_months.issubset(incoming_months):
+        raise ValueError(
+            f"Cannot safely migrate {table!r} to the record schema. "
+            f"Existing snapshots: {sorted(existing_months)}; "
+            f"incoming snapshots: {sorted(incoming_months)}. "
+            "Include all existing snapshots in the input directory."
+        )
+
+    return True
+
 
 def run_local_pipeline(
     input_path: str | Path,
@@ -65,6 +92,7 @@ def run_local_pipeline(
     return len(transformed_records)
 
 
+
 def run_snapshot_pipeline(
     run_date: date,
     *,
@@ -72,13 +100,17 @@ def run_snapshot_pipeline(
     db_path: str | Path | None = None,
     output_path: str | Path | None = None,
 ) -> dict[str, int | Path]:
-    """Load a dated batch of source files into DuckDB and export metrics."""
+    """Load snapshots, number source rows, clean them, and export metrics."""
     ingest_dir = Path(source_root) / f"ingest_date={run_date.isoformat()}"
 
     if not ingest_dir.is_dir():
         raise FileNotFoundError(f"Input directory not found: {ingest_dir}")
 
-    files = sorted(ingest_dir.glob("*.csv"))
+    # Sort by the actual snapshot date, not by file creation date.
+    files = sorted(
+        ingest_dir.glob("*.csv"),
+        key=_snapshot_month_from_filename,
+    )
     if not files:
         raise FileNotFoundError(f"No CSV files found in: {ingest_dir}")
 
@@ -87,8 +119,9 @@ def run_snapshot_pipeline(
     seen_months = set()
     records_read = 0
     records_cleaned = 0
+    next_record = 1
 
-    # Parse and clean each snapshot independently.
+    # Read snapshots in chronological order and number rows before cleaning.
     for path in files:
         snapshot_month = _snapshot_month_from_filename(path)
 
@@ -102,10 +135,23 @@ def run_snapshot_pipeline(
         if not records:
             raise ValueError(f"Source file contains no records: {path.name}")
 
-        raw = pd.DataFrame.from_records(records, columns=SOURCE_COLUMNS)
+        raw = pd.DataFrame.from_records(
+            records,
+            columns=SOURCE_COLUMNS,
+        )
+
+        # The sequence includes every source row, including duplicates.
+        raw.insert(
+            0,
+            "record",
+            range(next_record, next_record + len(raw)),
+        )
+        next_record += len(raw)
+
         raw["snapshot_month"] = snapshot_month
 
-        cleaned = clean_records(raw[SOURCE_COLUMNS], snapshot_month)
+        # Deduplicate on source fields while preserving the assigned record.
+        cleaned = clean_records(raw, snapshot_month)
 
         raw_frames.append(raw)
         cleaned_frames.append(cleaned)
@@ -118,19 +164,57 @@ def run_snapshot_pipeline(
     database_path = Path(db_path or WAREHOUSE_PATH)
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Replace only the incoming snapshot months; preserve other snapshots.
-    upsert_snapshots(
-        "raw_source_a_records",
-        raw_batch,
-        db_path=database_path,
-    )
-    upsert_snapshots(
-        "cleaned_source_a_records",
-        cleaned_batch,
-        db_path=database_path,
-    )
+    incoming_months = set(raw_batch["snapshot_month"].astype(str))
+    incoming_batches = [
+        ("raw_source_a_records", raw_batch),
+        ("cleaned_source_a_records", cleaned_batch),
+    ]
 
-    # Keep a cleaned Parquet copy of all snapshots currently in the warehouse.
+    # Inspect existing tables before changing either table.
+    tables_to_rebuild = set()
+
+    for table, batch in incoming_batches:
+        try:
+            existing = read_table(table, db_path=database_path)
+        except (FileNotFoundError, ValueError):
+            # The table does not exist yet.
+            continue
+
+        if "snapshot_month" not in existing.columns:
+            raise ValueError(
+                f"Cannot safely update {table!r}: "
+                "the existing table has no snapshot_month column."
+            )
+
+        existing_months = set(
+            existing["snapshot_month"].dropna().astype(str)
+        )
+
+        # Global record numbering requires the input batch to include
+        # all snapshots already stored in the warehouse.
+        if not existing_months.issubset(incoming_months):
+            missing_months = sorted(existing_months - incoming_months)
+            raise ValueError(
+                "Global record numbering requires all existing snapshots "
+                f"in the input directory. Missing snapshots: {missing_months}"
+            )
+
+        # Rebuild a legacy table when its columns differ from the new schema.
+        if list(existing.columns) != list(batch.columns):
+            tables_to_rebuild.add(table)
+
+    # Upgrade the old schema if necessary; otherwise replace incoming months.
+    for table, batch in incoming_batches:
+        if table in tables_to_rebuild:
+            load(table, batch, db_path=database_path)
+        else:
+            upsert_snapshots(
+                table,
+                batch,
+                db_path=database_path,
+            )
+
+    # Export all cleaned snapshots currently in the warehouse.
     all_cleaned = read_table(
         "cleaned_source_a_records",
         db_path=database_path,
@@ -138,7 +222,7 @@ def run_snapshot_pipeline(
     parquet_path = database_path.parent / "cleaned_source_a.parquet"
     all_cleaned.to_parquet(parquet_path, index=False)
 
-    # Build the mart from the warehouse, then refresh the CSV export.
+    # Metrics remain aggregated; the row-level record ID is not a metric.
     metrics_batch = build_metrics(all_cleaned)
     upsert_snapshots(
         "fct_records_daily",
