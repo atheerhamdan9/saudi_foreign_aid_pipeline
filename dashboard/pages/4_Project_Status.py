@@ -52,8 +52,6 @@ filtered_df = df.copy()
 
 st.subheader("Project Status Distribution")
 
-st.subheader("Project Status Distribution")
-
 fig = px.pie(
     filtered_df,
     names="status",
