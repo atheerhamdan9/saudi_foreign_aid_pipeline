@@ -6,3 +6,12 @@
       path: "{{ env_var('DUCKDB_PATH', 'data/processed/dev.duckdb') }}"
       schema: dbt_dev
       threads: 4
+
+    bigquery:
+      type: bigquery
+      method: oauth
+      project: saudi-foreign-aid-data
+      dataset: saudi_aid_dbt_dev
+      location: europe-west1
+      threads: 4
+      timeout_seconds: 300

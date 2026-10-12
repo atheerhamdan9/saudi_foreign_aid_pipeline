@@ -1,4 +1,4 @@
-﻿with staged as (
+with staged as (
 
     select *
     from {{ ref('stg_source_a__records') }}
