@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
-
+import plotly.express as px
+from theme import DARK_GREEN, LIGHT_GREEN
 from queries import get_project_status
 
 
@@ -47,21 +48,42 @@ col3.metric(
     f"{df.loc[df['status'] == 'In Progress', 'record_count'].sum():,.0f}",
 )
 
+filtered_df = df.copy()
+
 st.subheader("Project Status Distribution")
 
-st.bar_chart(
-    df,
-    x="status",
-    y="record_count",
-    x_label="Project Status",
-    y_label="Number of Records",
+st.subheader("Project Status Distribution")
+
+fig = px.pie(
+    filtered_df,
+    names="status",
+    values="record_count",
+    hole=0.5,
+    color="status",
+    color_discrete_map={
+    "Completed": DARK_GREEN,
+    "In Progress": LIGHT_GREEN,
+    },
 )
+
+fig.update_traces(
+    textposition="inside",
+    textinfo="percent+label",
+)
+
+fig.update_layout(
+    height=400,
+    showlegend=True,
+    margin=dict(t=20, b=20, l=20, r=20),
+)
+
+st.plotly_chart(fig, use_container_width=True)
 
 st.subheader("Status Breakdown")
 
 st.dataframe(
-    df[
-        ["status", "record_count", "percentage", "total_cost_usd"]
+    filtered_df[
+    ["status", "record_count", "percentage", "total_cost_usd"]
     ].rename(
         columns={
             "status": "Project Status",

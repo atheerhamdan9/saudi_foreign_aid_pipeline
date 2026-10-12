@@ -1,6 +1,7 @@
 
 from pathlib import Path
-
+import altair as alt
+from theme import DARK_GREEN, LIGHT_GREEN
 import pandas as pd
 import streamlit as st
 
@@ -83,6 +84,7 @@ top_n = st.selectbox(
     "Number of countries to display",
     [10, 20, 30],
     index=0,
+    disabled=bool(search.strip()),
 )
 
 chart_df = df.copy()
@@ -96,18 +98,50 @@ chart_df = (
     chart_df
     .sort_values("total_cost_usd", ascending=False)
     .head(top_n)
+    .copy()
 )
 
 chart_df["aid_billions"] = (
     chart_df["total_cost_usd"] / 1_000_000_000
 )
 
-st.bar_chart(
-    chart_df,
-    x="country_name",
-    y="aid_billions",
-    horizontal=True,
-    x_label="Beneficiary Country",
-    y_label="Reported Aid (USD Billions)",
-    height=max(400, top_n * 35),
+# Alternate between dark and light green
+chart_df["bar_color"] = [
+    DARK_GREEN if i % 2 == 0 else LIGHT_GREEN
+    for i in range(len(chart_df))
+]
+
+# Create horizontal bar chart
+chart = (
+    alt.Chart(chart_df)
+    .mark_bar()
+    .encode(
+        x=alt.X(
+            "aid_billions:Q",
+            title="Reported Aid (USD Billions)",
+        ),
+        y=alt.Y(
+            "country_name:N",
+            sort=chart_df["country_name"].tolist(),
+            title="Beneficiary Country",
+        ),
+        color=alt.Color(
+            "bar_color:N",
+            scale=None,
+            legend=None,
+        ),
+        tooltip=[
+            alt.Tooltip("country_name:N", title="Country"),
+            alt.Tooltip(
+                "aid_billions:Q",
+                title="Reported Aid (USD Billions)",
+                format=",.2f",
+            ),
+        ],
+    )
+    .properties(
+        height=max(180, len(chart_df) * 40 + 100),
+    )
 )
+
+st.altair_chart(chart, use_container_width=True)
