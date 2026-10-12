@@ -1,6 +1,7 @@
 
 from pathlib import Path
-
+import altair as alt
+from theme import CHART_COLORS
 import pandas as pd
 import streamlit as st
 
@@ -13,7 +14,18 @@ st.set_page_config(
     layout="wide",
 )
 
+# Display KSrelief logo
+logo_path = Path(__file__).resolve().parent / "assets" / "ksrelief_logo.svg"
+
+st.image(str(logo_path), width=180)
+
 st.title("Saudi Foreign Aid Dashboard")
+
+st.caption(
+    "Independent educational data analytics project. "
+    "Not an official KSrelief platform."
+)
+
 
 st.write(
     "Explore reported Saudi foreign aid by beneficiary country."
@@ -86,15 +98,38 @@ top_10["aid_billions"] = (
     top_10["total_cost_usd"] / 1_000_000_000
 )
 
-st.bar_chart(
-    top_10,
-    x="beneficiary_country",
-    y="aid_billions",
-    horizontal=True,
-    x_label="Beneficiary Country",
-    y_label="Reported Aid (USD Billions)",
-    height=450,
+top_10["bar_color"] = [
+    CHART_COLORS[i % len(CHART_COLORS)]
+    for i in range(len(top_10))
+]
+
+chart = (
+    alt.Chart(top_10)
+    .mark_bar()
+    .encode(
+        x=alt.X(
+            "aid_billions:Q",
+            title="Reported Aid (USD Billions)",
+        ),
+        y=alt.Y(
+            "beneficiary_country:N",
+            sort="-x",
+            title="Beneficiary Country",
+        ),
+        color=alt.Color(
+            "bar_color:N",
+            scale=None,
+            legend=None,
+        ),
+        tooltip=[
+            alt.Tooltip("beneficiary_country:N", title="Country"),
+            alt.Tooltip("aid_billions:Q", title="Aid (USD Billions)", format=",.2f"),
+        ],
+    )
+    .properties(height=450)
 )
+
+st.altair_chart(chart, use_container_width=True)
 
 st.caption(
     "Source: BigQuery mart. "
