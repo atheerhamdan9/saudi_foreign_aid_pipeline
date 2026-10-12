@@ -15,7 +15,6 @@ from google.cloud import storage
 
 from pipeline.io.gcs_storage import upload_raw_file
 
-
 RETRYABLE_ERRORS = (
     ServiceUnavailable,
     TooManyRequests,

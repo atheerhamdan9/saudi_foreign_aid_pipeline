@@ -9,7 +9,6 @@ from google.api_core.exceptions import PreconditionFailed, ServiceUnavailable
 
 from pipeline.sources.saudi_aid_projects import extract
 
-
 RUN_DATE = date(2026, 10, 11)
 BUCKET = "test-bucket"
 

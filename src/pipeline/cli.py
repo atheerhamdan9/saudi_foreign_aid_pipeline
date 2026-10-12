@@ -17,6 +17,7 @@ from pipeline.config import (
 from pipeline.contracts import load_contract
 from pipeline.io.warehouse import load, read_table, upsert_snapshots
 from pipeline.metrics import write_metrics
+from pipeline.sources.saudi_aid_projects import extract
 from pipeline.sources.source_a import read_source_a
 from pipeline.transform import (
     SOURCE_COLUMNS,
@@ -24,7 +25,6 @@ from pipeline.transform import (
     clean_records,
     transform_records,
 )
-from pipeline.sources.saudi_aid_projects import extract
 
 OUTPUT_COLUMNS = SOURCE_COLUMNS
 SNAPSHOT_PATTERN = re.compile(r"(?<!\d)(\d{2})M(\d{2})(?!\d)")
