@@ -1,4 +1,4 @@
-﻿SELECT
+SELECT
     snapshot_month,
     dimension_type,
     dimension_value,

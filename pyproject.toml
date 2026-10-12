@@ -23,6 +23,12 @@ dev = [
     "ruff>=0.9",
 ]
 
+dbt = [
+    "dbt-core>=1.12,<1.13",
+    "dbt-duckdb>=1.11,<1.12",
+    "dbt-bigquery>=1.12,<1.13",
+]
+
 [project.scripts]
 aid-pipeline = "pipeline.cli:main"
 

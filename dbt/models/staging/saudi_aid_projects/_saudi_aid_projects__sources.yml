@@ -1,9 +1,10 @@
+
 version: 2
 
 sources:
   - name: saudi_aid_projects
     description: "Raw Saudi foreign aid project records loaded into DuckDB."
-    schema: main
+    schema: "{{ 'saudi_aid_raw' if target.type == 'bigquery' else 'main' }}"
 
     tables:
       - name: raw_source_a_records
