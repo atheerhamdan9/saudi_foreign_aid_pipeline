@@ -164,6 +164,10 @@ def run_snapshot_pipeline(
     database_path = Path(db_path or WAREHOUSE_PATH)
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # Land raw source records as Parquet, preserving all rows.
+    raw_parquet_path = database_path.parent / "raw_source_a.parquet"
+    raw_batch.to_parquet(raw_parquet_path, index=False)
+
     incoming_months = set(raw_batch["snapshot_month"].astype(str))
     incoming_batches = [
         ("raw_source_a_records", raw_batch),
