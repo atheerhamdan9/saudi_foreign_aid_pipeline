@@ -1,0 +1,9 @@
+services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: saudi-foreign-aid-pipeline:local
+    volumes:
+      - ./data:/app/data
+    command: ["run", "--date", "2026-10-11"]
