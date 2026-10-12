@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: saudi_aid_projects
+    description: "Raw Saudi foreign aid project records loaded into DuckDB."
+    schema: main
+
+    tables:
+      - name: raw_source_a_records
+        description: "Raw project records from all snapshots, including duplicates."
+
+        columns:
+          - name: record
+            description: "Sequential source record number."
+
+          - name: project_title
+          - name: project_status
+          - name: project_sector
+          - name: project_location
+          - name: total_cost_usd
+          - name: project_donor
+          - name: beneficiary_country
+
+          - name: snapshot_month
+            description: "Snapshot month associated with the source record."

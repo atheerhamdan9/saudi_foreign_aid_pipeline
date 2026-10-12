@@ -230,3 +230,9 @@ data/processed/*
 !data/processed/.gitkeep
 data/output/*
 !data/output/.gitkeep
+
+# dbt generated files
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
