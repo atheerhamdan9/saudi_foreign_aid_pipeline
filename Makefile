@@ -1,4 +1,4 @@
-.PHONY: install run test lint clean
+.PHONY: install run test lint clean docker-build docker-run docker-down
 
 RUN_DATE ?= $(shell date +%F)
 
@@ -16,3 +16,12 @@ lint:
 
 clean:
 	rm -rf .pytest_cache .ruff_cache
+
+docker-build:
+	docker compose build
+
+docker-run:
+	docker compose up --build
+
+docker-down:
+	docker compose down
