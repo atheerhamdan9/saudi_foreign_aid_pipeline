@@ -6,4 +6,14 @@ services:
     image: saudi-foreign-aid-pipeline:local
     volumes:
       - ./data:/app/data
-    command: ["run", "--date", "2026-10-11"]
+    command: ["run", "--date", "${RUN_DATE:-2026-10-11}"]
+
+  dbt:
+    image: saudi-foreign-aid-pipeline:local
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    volumes:
+      - ./data:/app/data
+    entrypoint: ["dbt"]
+    command: ["build", "--project-dir", "dbt", "--profiles-dir", "dbt"]
