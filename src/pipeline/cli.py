@@ -17,6 +17,7 @@ from pipeline.config import (
 from pipeline.contracts import load_contract
 from pipeline.io.warehouse import load, read_table, upsert_snapshots
 from pipeline.metrics import write_metrics
+from pipeline.sources.saudi_aid_projects import extract
 from pipeline.sources.source_a import read_source_a
 from pipeline.transform import (
     SOURCE_COLUMNS,
@@ -310,11 +311,30 @@ def main(argv: list[str] | None = None) -> int:
         help="Ingestion date, in YYYY-MM-DD format",
     )
 
+    run_parser.add_argument(
+        "--cloud",
+        action="store_true",
+        help="Upload the raw Parquet file to GCS",
+    )
+
     parsed = parser.parse_args(args)
     _validate_contracts()
 
     if parsed.command == "run":
         result = run_snapshot_pipeline(parsed.date)
+        if parsed.cloud:
+            from pipeline.config import GCS_BUCKET_NAME
+            if not GCS_BUCKET_NAME:
+                parser.error("GCS_BUCKET_NAME is required when using --cloud")
+            raw_parquet_path = result["warehouse_path"].parent / "raw_source_a.parquet"
+
+            landed_uri = extract(
+                run_date=parsed.date,
+                local_path=raw_parquet_path,
+                bucket_name=GCS_BUCKET_NAME,
+            )
+
+            print(f"Landed URI: {landed_uri}")
         print(f"Records read: {result['records_read']:,}")
         print(f"Records after cleaning: {result['records_cleaned']:,}")
         print(f"Metric rows: {result['metric_rows']:,}")

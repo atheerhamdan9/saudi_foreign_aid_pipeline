@@ -43,6 +43,7 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+markers = ["cloud: integration tests that require Google Cloud credentials and resources"]
 
 [tool.ruff]
 line-length = 88
