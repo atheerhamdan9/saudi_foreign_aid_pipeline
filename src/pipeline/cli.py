@@ -24,6 +24,7 @@ from pipeline.transform import (
     clean_records,
     transform_records,
 )
+from pipeline.sources.saudi_aid_projects import extract
 
 OUTPUT_COLUMNS = SOURCE_COLUMNS
 SNAPSHOT_PATTERN = re.compile(r"(?<!\d)(\d{2})M(\d{2})(?!\d)")
@@ -310,11 +311,30 @@ def main(argv: list[str] | None = None) -> int:
         help="Ingestion date, in YYYY-MM-DD format",
     )
 
+    run_parser.add_argument(
+        "--cloud",
+        action="store_true",
+        help="Upload the raw Parquet file to GCS",
+    )
+
     parsed = parser.parse_args(args)
     _validate_contracts()
 
     if parsed.command == "run":
         result = run_snapshot_pipeline(parsed.date)
+        if parsed.cloud:
+            from pipeline.config import GCS_BUCKET_NAME
+            if not GCS_BUCKET_NAME:
+                parser.error("GCS_BUCKET_NAME is required when using --cloud")
+            raw_parquet_path = result["warehouse_path"].parent / "raw_source_a.parquet"
+
+            landed_uri = extract(
+                run_date=parsed.date,
+                local_path=raw_parquet_path,
+                bucket_name=GCS_BUCKET_NAME,
+            )
+
+            print(f"Landed URI: {landed_uri}")
         print(f"Records read: {result['records_read']:,}")
         print(f"Records after cleaning: {result['records_cleaned']:,}")
         print(f"Metric rows: {result['metric_rows']:,}")

@@ -1,5 +1,5 @@
 """Configuration and local paths for the Saudi Foreign Aid pipeline."""
-
+import os
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -15,3 +15,6 @@ OUTPUT_DIR = DATA_DIR / "output"
 CONTRACTS_DIR = PROJECT_ROOT / "contracts"
 
 WAREHOUSE_PATH = PROCESSED_DATA_DIR / "dev.duckdb"
+
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "")
+GCS_BUCKET_NAME = os.getenv("GCS_BUCKET_NAME", "")
