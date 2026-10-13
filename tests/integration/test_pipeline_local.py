@@ -343,3 +343,61 @@ def test_pipeline_removes_stale_cleaned_records(tmp_path):
 
     assert cleaned.empty
     assert len(quarantined) == len(records)
+
+def test_fully_invalid_snapshot_preserves_other_snapshots(tmp_path):
+    import shutil
+    from datetime import date
+
+    import pandas as pd
+
+    from pipeline.cli import run_snapshot_pipeline
+    from pipeline.io.warehouse import read_table
+
+    source_root = tmp_path / "raw" / "source_a"
+    ingest_dir = source_root / "ingest_date=2026-10-11"
+    ingest_dir.mkdir(parents=True)
+
+    filenames = [
+        "Saudi foreign aid projects 25M10.csv",
+        "Saudi foreign aid projects 25M12.csv",
+    ]
+
+    for filename in filenames:
+        shutil.copyfile(FIXTURE_PATH, ingest_dir / filename)
+
+    database_path = tmp_path / "processed" / "dev.duckdb"
+    output_path = tmp_path / "output" / "metrics.csv"
+
+    run_snapshot_pipeline(
+        date(2026, 10, 11),
+        source_root=source_root,
+        db_path=database_path,
+        output_path=output_path,
+    )
+
+    # Make only the second snapshot fully invalid.
+    second_snapshot = ingest_dir / filenames[1]
+    records = pd.read_csv(second_snapshot)
+    records["مجموع التكاليف $"] = "invalid"
+    records.to_csv(second_snapshot, index=False)
+
+    run_snapshot_pipeline(
+        date(2026, 10, 11),
+        source_root=source_root,
+        db_path=database_path,
+        output_path=output_path,
+    )
+
+    cleaned = read_table(
+        "cleaned_source_a_records",
+        db_path=database_path,
+    )
+    quarantined = read_table(
+        "quarantined_source_a_records",
+        db_path=database_path,
+    )
+
+    assert set(cleaned["snapshot_month"]) == {"2025-10"}
+    assert len(cleaned) == 2
+    assert len(quarantined) == len(records)
+    assert set(quarantined["snapshot_month"]) == {"2025-12"}

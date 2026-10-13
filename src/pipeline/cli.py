@@ -232,16 +232,16 @@ def run_snapshot_pipeline(
             )
     """
     for table, batch in incoming_batches:
-        if batch.empty:
+        if table == "cleaned_source_a_records":
             load(table, batch, db_path=database_path)
-        elif table in tables_to_rebuild:
-           load(table, batch, db_path=database_path)
+        elif batch.empty or table in tables_to_rebuild:
+            load(table, batch, db_path=database_path)
         else:
             upsert_snapshots(
                 table,
                 batch,
                 db_path=database_path,
-            )
+           )
     load(
         "quarantined_source_a_records",
         quarantine_batch,
