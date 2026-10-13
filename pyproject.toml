@@ -25,6 +25,8 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "ruff>=0.9",
+    "sqlfluff>=4.4,<4.5",
+    "sqlfluff-templater-dbt>=4.4,<4.5",
 ]
 
 dbt = [

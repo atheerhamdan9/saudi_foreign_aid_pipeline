@@ -1,15 +1,22 @@
-﻿
-version: 2
+﻿version: 2
 
 models:
   - name: fct_records_by_snapshot
-    description: "Aggregated aid metrics by snapshot and dimension."
+    description: >
+      Aggregated Saudi foreign aid metrics by snapshot month and analytical
+      dimension. Each row represents one combination of snapshot_month,
+      dimension_type, and dimension_value. The model summarizes record counts
+      and total project costs for beneficiary countries, sectors, donors,
+      and project statuses.
+
     columns:
       - name: snapshot_month
+        description: "Snapshot month associated with the aggregated records."
         data_tests:
           - not_null
 
       - name: dimension_type
+        description: "Analytical dimension used to group the project records."
         data_tests:
           - not_null
           - accepted_values:
@@ -21,13 +28,16 @@ models:
                   - project_status
 
       - name: dimension_value
+        description: "Value of the selected analytical dimension."
         data_tests:
           - not_null
 
       - name: record_count
+        description: "Number of cleaned project records in this snapshot and dimension group."
         data_tests:
           - not_null
 
       - name: total_cost_usd
+        description: "Sum of project costs in USD for this snapshot and dimension group."
         data_tests:
           - not_null
