@@ -1,7 +1,25 @@
+{%- set snapshot_months = var('snapshot_months', []) -%}
+
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='append' if target.type == 'duckdb' else 'merge',
+        pre_hook=["{{ delete_snapshot_metrics() }}"] if target.type == 'duckdb' else [],
+        unique_key=['snapshot_month', 'dimension_type', 'dimension_value']
+    )
+}}
 with staged as (
 
     select *
     from {{ ref('stg_source_a__records') }}
+
+    {% if is_incremental() and snapshot_months | length > 0 %}
+        where snapshot_month in (
+            {% for month in snapshot_months %}
+                '{{ month }}'{{ "," if not loop.last }}
+            {% endfor %}
+        )
+    {% endif %}
 
 ),
 
