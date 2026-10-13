@@ -30,8 +30,14 @@ country_names = dict(
     )
 )
 
-# Get data from BigQuery
-df = get_top_beneficiary_countries(snapshot)
+try:
+    df = get_top_beneficiary_countries(snapshot)
+except Exception:
+    st.error(
+        "Unable to load beneficiary country data from BigQuery. "
+        "Please check the connection and try again."
+    )
+    st.stop()
 
 # Translate country names
 df["country_name"] = df["dimension_value"].map(country_names)

@@ -14,7 +14,14 @@ snapshot = st.selectbox(
     index=2,
 )
 
-df = get_project_status(snapshot)
+try:
+    df = get_project_status(snapshot)
+except Exception:
+    st.error(
+        "Unable to load project status data from BigQuery. "
+        "Please check the connection and try again."
+    )
+    st.stop()
 
 status_names = {
     "منتهي": "Completed",

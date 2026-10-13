@@ -1,5 +1,9 @@
+from xmlrpc import client
+
 import pandas as pd
 from google.cloud import bigquery
+from google.api_core.exceptions import GoogleAPICallError
+from google.auth.exceptions import DefaultCredentialsError
 
 PROJECT_ID = "saudi-foreign-aid-data"
 
@@ -9,11 +13,19 @@ MART_TABLE = (
     "fct_records_by_snapshot"
 )
 
+def get_bigquery_client() -> bigquery.Client:
+    try:
+        return bigquery.Client(project=PROJECT_ID)
+    except (GoogleAPICallError, DefaultCredentialsError) as exc:
+        raise RuntimeError(
+            "Unable to connect to BigQuery."
+        ) from exc
+
 
 def get_top_beneficiary_countries(snapshot_month: str) -> pd.DataFrame:
     """Return beneficiary countries ranked by reported aid value."""
 
-    client = bigquery.Client(project=PROJECT_ID)
+    client = get_bigquery_client()
 
     query = f"""
         SELECT
@@ -38,7 +50,13 @@ def get_top_beneficiary_countries(snapshot_month: str) -> pd.DataFrame:
         ]
     )
 
-    rows = client.query(query, job_config=job_config).result()
+    try:
+            rows = client.query(query, job_config=job_config).result()
+    except (GoogleAPICallError, DefaultCredentialsError) as exc:
+        raise RuntimeError(
+            "Unable to load beneficiary country data from BigQuery."
+        ) from exc
+
 
     return pd.DataFrame(
         [dict(row.items()) for row in rows],
@@ -50,11 +68,11 @@ def get_top_beneficiary_countries(snapshot_month: str) -> pd.DataFrame:
             "total_cost_usd",
         ],
     )
-    
+
 def get_aid_by_sector(snapshot_month: str) -> pd.DataFrame:
     """Return aid sectors ranked by reported aid value."""
 
-    client = bigquery.Client(project=PROJECT_ID)
+    client = get_bigquery_client()
 
     query = f"""
         SELECT
@@ -78,7 +96,12 @@ def get_aid_by_sector(snapshot_month: str) -> pd.DataFrame:
         ]
     )
 
-    rows = client.query(query, job_config=job_config).result()
+    try:
+        rows = client.query(query, job_config=job_config).result()
+    except (GoogleAPICallError, DefaultCredentialsError) as exc:
+        raise RuntimeError(
+            "Unable to load sector data from BigQuery."
+        ) from exc
 
     return pd.DataFrame(
         [dict(row.items()) for row in rows],
@@ -89,11 +112,11 @@ def get_aid_by_sector(snapshot_month: str) -> pd.DataFrame:
             "total_cost_usd",
         ],
     )
-    
+
 def get_aid_by_donor(snapshot_month: str) -> pd.DataFrame:
     """Return donor entities ranked by reported aid value."""
 
-    client = bigquery.Client(project=PROJECT_ID)
+    client = get_bigquery_client()
 
     query = f"""
         SELECT
@@ -115,7 +138,12 @@ def get_aid_by_donor(snapshot_month: str) -> pd.DataFrame:
         ]
     )
 
-    rows = client.query(query, job_config=job_config).result()
+    try:
+        rows = client.query(query, job_config=job_config).result()
+    except (GoogleAPICallError, DefaultCredentialsError) as exc:
+        raise RuntimeError(
+            "Unable to load donor data from BigQuery."
+        ) from exc
 
     return pd.DataFrame(
         [dict(row.items()) for row in rows],
@@ -126,11 +154,11 @@ def get_aid_by_donor(snapshot_month: str) -> pd.DataFrame:
             "total_cost_usd",
         ],
     )
-    
+
 def get_project_status(snapshot_month: str) -> pd.DataFrame:
     """Return project status distribution for a snapshot."""
 
-    client = bigquery.Client(project=PROJECT_ID)
+    client = get_bigquery_client()
 
     query = f"""
         SELECT
@@ -152,7 +180,12 @@ def get_project_status(snapshot_month: str) -> pd.DataFrame:
         ]
     )
 
-    rows = client.query(query, job_config=job_config).result()
+    try:
+        rows = client.query(query, job_config=job_config).result()
+    except (GoogleAPICallError, DefaultCredentialsError) as exc:
+        raise RuntimeError(
+            "Unable to load project status data from BigQuery."
+        ) from exc
 
     return pd.DataFrame(
         [dict(row.items()) for row in rows],
