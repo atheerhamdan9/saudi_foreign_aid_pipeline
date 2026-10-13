@@ -138,3 +138,41 @@ def test_record_numbers_continue_across_snapshots(tmp_path):
     }
 
     assert result["metric_rows"] == 21
+
+def test_snapshot_pipeline_missing_directory(tmp_path):
+    """Raise a clear error when the source directory is missing."""
+    from datetime import date
+
+    import pytest
+
+    from pipeline.cli import run_snapshot_pipeline
+
+    with pytest.raises(
+        FileNotFoundError,
+        match="Input directory not found",
+    ):
+        run_snapshot_pipeline(
+            date(2026, 10, 11),
+            source_root=tmp_path / "missing_source",
+        )
+
+def test_snapshot_pipeline_missing_csv_files(tmp_path):
+    """Raise a clear error when the source directory has no CSV files."""
+    from datetime import date
+
+    import pytest
+
+    from pipeline.cli import run_snapshot_pipeline
+
+    source_root = tmp_path / "raw" / "source_a"
+    ingest_dir = source_root / "ingest_date=2026-10-11"
+    ingest_dir.mkdir(parents=True)
+
+    with pytest.raises(
+        FileNotFoundError,
+        match="No CSV files found",
+    ):
+        run_snapshot_pipeline(
+            date(2026, 10, 11),
+            source_root=source_root,
+        )
