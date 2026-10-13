@@ -1,0 +1,16 @@
+FROM apache/airflow:2.10.5-python3.12
+
+USER airflow
+
+WORKDIR /opt/project
+
+COPY --chown=airflow:0 pyproject.toml ./
+COPY --chown=airflow:0 src ./src
+
+RUN pip install --no-cache-dir \
+    . \
+    "dbt-core>=1.12,<1.13" \
+    "dbt-duckdb>=1.11,<1.12" \
+    "pytest>=8.0,<9.0"
+
+COPY --chown=airflow:0 dbt ./dbt

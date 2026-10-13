@@ -17,3 +17,39 @@ services:
       - ./data:/app/data
     entrypoint: ["dbt"]
     command: ["build", "--project-dir", "dbt", "--profiles-dir", "dbt"]
+
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+
+    image: saudi-aid-airflow:local
+    container_name: saudi-aid-airflow
+    command: ["standalone"]
+
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      PYTHONPATH: /opt/project/src
+
+      DEFAULT_RUN_DATE: ${RUN_DATE:-2026-10-11}
+      PIPELINE_SCHEDULE: ${PIPELINE_SCHEDULE:-@daily}
+
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+
+    ports:
+      - "8080:8080"
+
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./data:/opt/project/data
+      - ./dbt:/opt/project/dbt
+      - ./src:/opt/project/src
+      - ./contracts:/opt/project/contracts
+      - ./tests:/opt/project/tests
