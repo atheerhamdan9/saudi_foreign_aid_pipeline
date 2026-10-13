@@ -17,6 +17,7 @@ from pipeline.config import (
 from pipeline.contracts import load_contract
 from pipeline.io.warehouse import load, read_table, upsert_snapshots
 from pipeline.metrics import write_metrics
+from pipeline.quarantine import split_valid_and_quarantined
 from pipeline.sources.saudi_aid_projects import extract
 from pipeline.sources.source_a import read_source_a
 from pipeline.transform import (
@@ -121,6 +122,7 @@ def run_snapshot_pipeline(
     records_read = 0
     records_cleaned = 0
     next_record = 1
+    quarantine_frames = []
 
     # Read snapshots in chronological order and number rows before cleaning.
     for path in files:
@@ -152,7 +154,12 @@ def run_snapshot_pipeline(
         raw["snapshot_month"] = snapshot_month
 
         # Deduplicate on source fields while preserving the assigned record.
-        cleaned = clean_records(raw, snapshot_month)
+        #cleaned = clean_records(raw, snapshot_month)
+        valid, quarantined = split_valid_and_quarantined(raw)
+        #Collect rejected records for quarantine storage.
+        quarantine_frames.append(quarantined)
+        # Clean only valid records.
+        cleaned = clean_records(valid, snapshot_month)
 
         raw_frames.append(raw)
         cleaned_frames.append(cleaned)
@@ -161,6 +168,10 @@ def run_snapshot_pipeline(
 
     raw_batch = pd.concat(raw_frames, ignore_index=True)
     cleaned_batch = pd.concat(cleaned_frames, ignore_index=True)
+    quarantine_batch = pd.concat(
+        quarantine_frames,
+        ignore_index=True,
+    )
 
     database_path = Path(db_path or WAREHOUSE_PATH)
     database_path.parent.mkdir(parents=True, exist_ok=True)
@@ -209,6 +220,7 @@ def run_snapshot_pipeline(
             tables_to_rebuild.add(table)
 
     # Upgrade the old schema if necessary; otherwise replace incoming months.
+    """
     for table, batch in incoming_batches:
         if table in tables_to_rebuild:
             load(table, batch, db_path=database_path)
@@ -218,6 +230,23 @@ def run_snapshot_pipeline(
                 batch,
                 db_path=database_path,
             )
+    """
+    for table, batch in incoming_batches:
+        if table == "cleaned_source_a_records":
+            load(table, batch, db_path=database_path)
+        elif batch.empty or table in tables_to_rebuild:
+            load(table, batch, db_path=database_path)
+        else:
+            upsert_snapshots(
+                table,
+                batch,
+                db_path=database_path,
+           )
+    load(
+        "quarantined_source_a_records",
+        quarantine_batch,
+        db_path=database_path,
+    )
 
     # Export all cleaned snapshots currently in the warehouse.
     all_cleaned = read_table(
@@ -228,12 +257,27 @@ def run_snapshot_pipeline(
     all_cleaned.to_parquet(parquet_path, index=False)
 
     # Metrics remain aggregated; the row-level record ID is not a metric.
+    """
     metrics_batch = build_metrics(all_cleaned)
     upsert_snapshots(
         "fct_records_daily",
         metrics_batch,
         db_path=database_path,
     )
+    """
+    metrics_batch = build_metrics(all_cleaned)
+    if metrics_batch.empty:
+        load(
+            "fct_records_daily",
+            metrics_batch,
+            db_path=database_path,
+        )
+    else:
+        upsert_snapshots(
+            "fct_records_daily",
+            metrics_batch,
+            db_path=database_path,
+        )
 
     all_metrics = read_table(
         "fct_records_daily",

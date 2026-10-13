@@ -82,3 +82,16 @@ def test_contract_rejects_unknown_primary_key_column():
 
     with pytest.raises(ContractError, match="unknown columns"):
         validate_contract(contract)
+
+def test_contract_rejects_unsupported_schema_version():
+    """Reject contracts with unsupported schema versions."""
+    contract = {
+        "schema_version": 99,
+        "dataset": "example",
+        "columns": [
+            {"name": "value", "type": "string", "nullable": False}
+        ],
+    }
+
+    with pytest.raises(ContractError, match="Unsupported schema_version"):
+        validate_contract(contract)

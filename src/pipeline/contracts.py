@@ -8,6 +8,7 @@ import yaml
 class ContractError(ValueError):
     """Raised when a data contract is invalid."""
 
+SUPPORTED_SCHEMA_VERSIONS = {1}
 
 def validate_contract(contract: Any) -> None:
     """Validate the basic structure of a data contract."""
@@ -17,6 +18,12 @@ def validate_contract(contract: Any) -> None:
 
     if type(contract.get("schema_version")) is not int:
         raise ContractError("schema_version must be an integer.")
+
+    if contract["schema_version"] not in SUPPORTED_SCHEMA_VERSIONS:
+        raise ContractError(
+            f"Unsupported schema_version: {contract['schema_version']}. "
+            f"Supported versions: {sorted(SUPPORTED_SCHEMA_VERSIONS)}"
+        )
 
     if not isinstance(contract.get("dataset"), str) or not contract["dataset"].strip():
         raise ContractError("dataset must be a non-empty string.")
