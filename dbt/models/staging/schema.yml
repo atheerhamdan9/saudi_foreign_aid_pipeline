@@ -1,38 +1,53 @@
-
-version: 2
+﻿version: 2
 
 models:
   - name: stg_source_a__records
-    description: "Cleaned Saudi foreign aid records prepared for analytical models."
+    description: >
+      Cleaned Saudi foreign aid project records. Text fields are trimmed,
+      project costs are converted to numeric values, and exact duplicates
+      within each snapshot month are removed using the project attributes.
+      Records from different snapshot months are retained independently.
+
     columns:
+      - name: record
+        description: "Source record number used to select the retained duplicate."
+
       - name: project_title
+        description: "Trimmed project title."
         data_tests:
           - not_null
 
       - name: project_status
+        description: "Trimmed project execution status."
         data_tests:
           - not_null
 
       - name: project_sector
+        description: "Trimmed project sector."
         data_tests:
           - not_null
 
       - name: project_location
+        description: "Trimmed project location."
         data_tests:
           - not_null
 
       - name: total_cost_usd
+        description: "Project cost in USD, converted to a numeric value."
         data_tests:
           - not_null
 
       - name: project_donor
+        description: "Trimmed project donor name."
         data_tests:
           - not_null
 
       - name: beneficiary_country
+        description: "Trimmed beneficiary country."
         data_tests:
           - not_null
 
       - name: snapshot_month
+        description: "Source snapshot month; deduplication is scoped to this month."
         data_tests:
           - not_null

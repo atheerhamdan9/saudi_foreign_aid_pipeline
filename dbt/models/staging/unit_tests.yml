@@ -1,0 +1,19 @@
+
+version: 2
+
+unit_tests:
+  - name: test_staging_cleaning_and_deduplication
+    description: "Verify cost cleaning and snapshot-scoped deduplication."
+    model: stg_source_a__records
+
+    given:
+      - input: source('saudi_aid_projects', 'raw_source_a_records')
+        rows:
+          - {record: 1, project_title: " Project A ", project_status: "Finished", project_sector: "Health", project_location: "Yemen", total_cost_usd: "$1,200", project_donor: "Donor A", beneficiary_country: "Yemen", snapshot_month: "2026-03"}
+          - {record: 2, project_title: "Project A", project_status: "Finished", project_sector: "Health", project_location: "Yemen", total_cost_usd: "1200", project_donor: "Donor A", beneficiary_country: "Yemen", snapshot_month: "2026-03"}
+          - {record: 3, project_title: "Project A", project_status: "Finished", project_sector: "Health", project_location: "Yemen", total_cost_usd: "1200", project_donor: "Donor A", beneficiary_country: "Yemen", snapshot_month: "2026-04"}
+
+    expect:
+      rows:
+        - {record: 1, project_title: "Project A", project_status: "Finished", project_sector: "Health", project_location: "Yemen", total_cost_usd: 1200, project_donor: "Donor A", beneficiary_country: "Yemen", snapshot_month: "2026-03"}
+        - {record: 3, project_title: "Project A", project_status: "Finished", project_sector: "Health", project_location: "Yemen", total_cost_usd: 1200, project_donor: "Donor A", beneficiary_country: "Yemen", snapshot_month: "2026-04"}
