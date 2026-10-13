@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from airflow.models import DagBag
 from airflow.utils.dag_cycle_tester import check_cycle
 
@@ -7,11 +10,17 @@ EXPECTED_TASKS = {
     "ingest_snapshot",
     "dbt_incremental",
 }
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+DAG_FOLDER = os.getenv(
+    "AIRFLOW__CORE__DAGS_FOLDER",
+    str(PROJECT_ROOT / "airflow" / "dags"),
+)
 
 
 def load_dag():
     dag_bag = DagBag(
-        dag_folder="/opt/airflow/dags",
+        dag_folder=DAG_FOLDER,
         include_examples=False,
     )
 
