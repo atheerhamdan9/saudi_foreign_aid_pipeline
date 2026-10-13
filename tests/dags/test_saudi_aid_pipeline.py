@@ -1,7 +1,6 @@
 from airflow.models import DagBag
 from airflow.utils.dag_cycle_tester import check_cycle
 
-
 DAG_ID = "saudi_foreign_aid_pipeline"
 EXPECTED_TASKS = {
     "prepare_run",
