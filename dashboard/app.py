@@ -1,11 +1,12 @@
 
 from pathlib import Path
+
 import altair as alt
 from theme import CHART_COLORS
 import pandas as pd
 import streamlit as st
 
-from queries import get_top_beneficiary_countries
+from queries import get_top_beneficiary_countries, get_mart_last_modified
 
 
 st.set_page_config(
@@ -25,6 +26,17 @@ st.caption(
     "Independent educational data analytics project. "
     "Not an official KSrelief platform."
 )
+
+# Display the last modification time of the BigQuery analytical mart.
+last_modified = get_mart_last_modified()
+
+if last_modified is not None:
+    st.caption(
+        "Data last updated (BigQuery mart): "
+        f"{last_modified.strftime('%Y-%m-%d %H:%M UTC')}"
+    )
+else:
+    st.caption("Data last updated: Not available")
 
 
 st.write(
@@ -128,8 +140,15 @@ chart = (
             legend=None,
         ),
         tooltip=[
-            alt.Tooltip("beneficiary_country:N", title="Country"),
-            alt.Tooltip("aid_billions:Q", title="Aid (USD Billions)", format=",.2f"),
+            alt.Tooltip(
+                "beneficiary_country:N",
+                title="Country",
+            ),
+            alt.Tooltip(
+                "aid_billions:Q",
+                title="Aid (USD Billions)",
+                format=",.2f",
+            ),
         ],
     )
     .properties(height=450)

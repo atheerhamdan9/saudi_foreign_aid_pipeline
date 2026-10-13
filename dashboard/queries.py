@@ -1,4 +1,3 @@
-from xmlrpc import client
 
 import pandas as pd
 from google.cloud import bigquery
@@ -12,6 +11,7 @@ MART_TABLE = (
     "saudi_aid_dbt_dev."
     "fct_records_by_snapshot"
 )
+
 
 def get_bigquery_client() -> bigquery.Client:
     try:
@@ -51,12 +51,11 @@ def get_top_beneficiary_countries(snapshot_month: str) -> pd.DataFrame:
     )
 
     try:
-            rows = client.query(query, job_config=job_config).result()
+        rows = client.query(query, job_config=job_config).result()
     except (GoogleAPICallError, DefaultCredentialsError) as exc:
         raise RuntimeError(
             "Unable to load beneficiary country data from BigQuery."
         ) from exc
-
 
     return pd.DataFrame(
         [dict(row.items()) for row in rows],
@@ -68,6 +67,7 @@ def get_top_beneficiary_countries(snapshot_month: str) -> pd.DataFrame:
             "total_cost_usd",
         ],
     )
+
 
 def get_aid_by_sector(snapshot_month: str) -> pd.DataFrame:
     """Return aid sectors ranked by reported aid value."""
@@ -113,6 +113,7 @@ def get_aid_by_sector(snapshot_month: str) -> pd.DataFrame:
         ],
     )
 
+
 def get_aid_by_donor(snapshot_month: str) -> pd.DataFrame:
     """Return donor entities ranked by reported aid value."""
 
@@ -155,6 +156,7 @@ def get_aid_by_donor(snapshot_month: str) -> pd.DataFrame:
         ],
     )
 
+
 def get_project_status(snapshot_month: str) -> pd.DataFrame:
     """Return project status distribution for a snapshot."""
 
@@ -196,3 +198,14 @@ def get_project_status(snapshot_month: str) -> pd.DataFrame:
             "total_cost_usd",
         ],
     )
+
+
+def get_mart_last_modified():
+    """Return the BigQuery mart's last modification time, if available."""
+
+    try:
+        client = get_bigquery_client()
+        table = client.get_table(MART_TABLE)
+        return table.modified
+    except (GoogleAPICallError, DefaultCredentialsError, RuntimeError):
+        return None
