@@ -16,7 +16,14 @@ snapshot = st.selectbox(
     index=2,
 )
 
-df = get_aid_by_sector(snapshot)
+try:
+    df = get_aid_by_sector(snapshot)
+except Exception:
+    st.error(
+        "Unable to load sector data from BigQuery. "
+        "Please check the connection and try again."
+    )
+    st.stop()
 
 # Load English sector names from the reference CSV
 csv_path = Path(__file__).resolve().parents[1] / "sector_names.csv"

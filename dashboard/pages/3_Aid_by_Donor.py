@@ -15,7 +15,14 @@ snapshot = st.selectbox(
     index=2,
 )
 
-df = get_aid_by_donor(snapshot)
+try:
+    df = get_aid_by_donor(snapshot)
+except Exception:
+    st.error(
+        "Unable to load donor data from BigQuery. "
+        "Please check the connection and try again."
+    )
+    st.stop()
 
 # Load donor names from the reference CSV
 csv_path = Path(__file__).resolve().parents[1] / "donor_names.csv"
