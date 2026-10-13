@@ -4,7 +4,7 @@
     config(
         materialized='incremental',
         incremental_strategy='append' if target.type == 'duckdb' else 'merge',
-        pre_hook=["{{ delete_snapshot_metrics() }}"] if target.type == 'duckdb' else [],
+        pre_hook=["{{ validate_snapshot_months() }}", "{{ delete_snapshot_metrics() }}"] if target.type == 'duckdb' else ["{{ validate_snapshot_months() }}"],        
         unique_key=['snapshot_month', 'dimension_type', 'dimension_value']
     )
 }}
