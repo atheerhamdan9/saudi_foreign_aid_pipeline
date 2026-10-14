@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "feature/**"
+      - "fix/**"
   pull_request:
     branches:
       - main
@@ -27,17 +28,33 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Install dependencies
+      - name: Install project dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
-          AIRFLOW_VERSION="2.10.5"
-          PYTHON_VERSION="3.12"
-          CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-          python -m pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
       - name: Run Ruff
         run: ruff check src tests
 
-      - name: Run tests
-        run: python -m pytest -v
+      - name: Run pipeline tests
+        run: python -m pytest -v --ignore=tests/dags
+
+      - name: Create isolated Airflow test environment
+        run: |
+          python -m venv .airflow-ci
+          .airflow-ci/bin/python -m pip install --upgrade pip
+
+          AIRFLOW_VERSION="2.10.5"
+          PYTHON_VERSION="3.12"
+          CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+
+          .airflow-ci/bin/python -m pip install \
+            "apache-airflow==${AIRFLOW_VERSION}" \
+            "pytest==8.3.4" \
+            --constraint "${CONSTRAINT_URL}"
+
+          .airflow-ci/bin/python -m pip check
+
+      - name: Run Airflow DAG tests
+        run: |
+          .airflow-ci/bin/python -m pytest -v tests/dags/test_saudi_aid_pipeline.py

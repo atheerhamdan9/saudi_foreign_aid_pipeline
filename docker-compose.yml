@@ -45,11 +45,25 @@ services:
     ports:
       - "8080:8080"
 
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5)\"",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
     volumes:
       - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
+      - airflow_logs:/opt/airflow/logs
       - ./data:/opt/project/data
       - ./dbt:/opt/project/dbt
       - ./src:/opt/project/src
       - ./contracts:/opt/project/contracts
       - ./tests:/opt/project/tests
+
+volumes:
+  airflow_logs:

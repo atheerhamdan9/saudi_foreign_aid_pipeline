@@ -57,3 +57,14 @@ rules:
   - Do not require a project ID because the source does not provide a reliable one.
   - Standardize source column names during ingestion.
   - Convert total_cost to numeric only in the cleaned transformation layer.
+
+freshness:
+  source:
+    field: release_date
+    warn_after_days: 180
+    error_after_days: null
+
+  ingestion:
+    field: ingested_at
+    warn_after_hours: 24
+    error_after_hours: 48

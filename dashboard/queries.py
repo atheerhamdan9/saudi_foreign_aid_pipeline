@@ -15,6 +15,7 @@ MART_TABLE = (
     "fct_records_by_snapshot"
 )
 
+
 def get_bigquery_client() -> bigquery.Client:
     """Create a BigQuery client with clear connection errors."""
     try:
@@ -69,7 +70,6 @@ def get_top_beneficiary_countries(snapshot_month: str) -> pd.DataFrame:
                 "Unable to load beneficiary countries data from BigQuery."
             ) from exc
 
-
     return pd.DataFrame(
         [dict(row.items()) for row in rows],
         columns=[
@@ -80,6 +80,7 @@ def get_top_beneficiary_countries(snapshot_month: str) -> pd.DataFrame:
             "total_cost_usd",
         ],
     )
+
 
 def get_aid_by_sector(snapshot_month: str) -> pd.DataFrame:
     """Return aid sectors ranked by reported aid value."""
@@ -129,6 +130,7 @@ def get_aid_by_sector(snapshot_month: str) -> pd.DataFrame:
         ],
     )
 
+
 def get_aid_by_donor(snapshot_month: str) -> pd.DataFrame:
     """Return donor entities ranked by reported aid value."""
 
@@ -174,6 +176,7 @@ def get_aid_by_donor(snapshot_month: str) -> pd.DataFrame:
             "total_cost_usd",
         ],
     )
+
 
 def get_project_status(snapshot_month: str) -> pd.DataFrame:
     """Return project status distribution for a snapshot."""
@@ -235,3 +238,13 @@ def get_data_last_updated():
         raise RuntimeError(
             "Unable to retrieve the BigQuery table update time."
         ) from exc
+
+
+def get_mart_last_modified():
+    """Return the BigQuery mart's last modification time, if available."""
+    try:
+        client = get_bigquery_client()
+        table = client.get_table(MART_TABLE)
+        return table.modified
+    except (GoogleAPICallError, DefaultCredentialsError, RuntimeError):
+        return None
