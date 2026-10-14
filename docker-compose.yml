@@ -58,9 +58,12 @@ services:
 
     volumes:
       - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
+      - airflow_logs:/opt/airflow/logs
       - ./data:/opt/project/data
       - ./dbt:/opt/project/dbt
       - ./src:/opt/project/src
       - ./contracts:/opt/project/contracts
       - ./tests:/opt/project/tests
+
+volumes:
+  airflow_logs:
