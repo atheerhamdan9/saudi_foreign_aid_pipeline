@@ -48,12 +48,14 @@ flowchart LR
     H["BigQuery Raw"]
     I["dbt BigQuery"]
     J["BigQuery Mart"]
-    K["Streamlit Dashboard"]
+    K["Streamlit Dashboard<br/>Cloud Run"]
+    L["Artifact Registry<br/>Docker Image"]
 
     A --> B --> C --> D --> E --> F
 
     C -. "Optional --cloud path" .-> G
     G --> H --> I --> J --> K
+    L -. "Container image" .-> K
 ```
 
 Airflow currently orchestrates the local development workflow:
@@ -207,6 +209,15 @@ bigquery  → BigQuery
 
 ## Dashboard
 
+![Saudi Foreign Aid Dashboard Overview](docs/images/dashboard-overview.png)
+
+### Live Dashboard
+
+The Streamlit dashboard is deployed on Google Cloud Run and connected to the BigQuery analytical mart.
+
+**[Open Live Dashboard](https://saudi-aid-dashboard-328746085032.europe-west1.run.app)**
+
+
 The Streamlit dashboard reads from the BigQuery analytical mart:
 
 ```text
@@ -330,6 +341,31 @@ Streamlit
 ```
 
 The current Airflow DAG does not orchestrate this full cloud sequence end-to-end.
+
+---
+
+### Dashboard Deployment on Cloud Run
+
+The Streamlit dashboard is deployed independently of the local Airflow workflow.
+
+Deployment configuration:
+
+- **Platform:** Google Cloud Run
+- **Region:** `europe-west1`
+- **Service:** `saudi-aid-dashboard`
+- **Container Registry:** Google Artifact Registry
+- **Dockerfile:** `Dockerfile.dashboard` (multi-stage build)
+- **Runtime Identity:** `saudi-aid-dashboard-sa`
+- **Data Source:** BigQuery analytical mart (`saudi_aid_dbt_dev`)
+- **Scaling:** 0–2 instances
+
+The Cloud Run service uses a dedicated service account with BigQuery Job User
+and dataset-level read access. No service account keys are embedded in the image.
+
+The dashboard is publicly accessible for demonstration purposes. Cloud Run
+and BigQuery usage may incur costs.
+
+**[Live Dashboard](https://saudi-aid-dashboard-328746085032.europe-west1.run.app)**
 
 ---
 
