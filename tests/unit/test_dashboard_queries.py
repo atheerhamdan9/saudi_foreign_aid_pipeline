@@ -1,6 +1,7 @@
 """Unit tests for dashboard BigQuery error handling."""
 
 import sys
+from datetime import UTC
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -11,6 +12,7 @@ from google.auth.exceptions import DefaultCredentialsError
 # Allow importing queries.py from the dashboard directory.
 DASHBOARD_DIR = Path(__file__).resolve().parents[2] / "dashboard"
 sys.path.insert(0, str(DASHBOARD_DIR))
+
 
 import queries  # noqa: E402
 
@@ -83,13 +85,13 @@ def test_queries_filter_selected_snapshot(query_function):
     assert job_config.query_parameters[0].value == "2026-03"
     
 def test_get_data_last_updated():
-    from datetime import datetime, timezone
+    from datetime import datetime
     from unittest.mock import MagicMock, patch
 
     from queries import get_data_last_updated
 
     expected_time = datetime(
-        2026, 10, 13, 12, 0, tzinfo=timezone.utc
+        2026, 10, 13, 12, 0, tzinfo=UTC
     )
 
     mock_client = MagicMock()
@@ -111,7 +113,6 @@ def test_get_data_last_updated_failure():
 
     import pytest
     from google.api_core.exceptions import ServiceUnavailable
-
     from queries import get_data_last_updated
 
     mock_client = MagicMock()
