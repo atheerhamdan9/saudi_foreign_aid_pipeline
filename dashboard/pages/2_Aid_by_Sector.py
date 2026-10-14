@@ -2,19 +2,25 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 import altair as alt
-from theme import DARK_GREEN, LIGHT_GREEN
+from theme import DARK_GREEN
 
 from queries import get_aid_by_sector
+from styles import apply_dashboard_styles
 
+
+apply_dashboard_styles()
 
 st.title("Aid by Sector")
 st.write("Explore reported Saudi foreign aid by project sector.")
 
-snapshot = st.selectbox(
-    "Select Snapshot",
-    ["2025-10", "2025-12", "2026-03"],
-    index=2,
-)
+with st.container(key="filter_snapshot", border=True):
+    st.markdown(":material/calendar_month: **Select Snapshot**")
+    snapshot = st.selectbox(
+        "Select Snapshot",
+        ["2025-10", "2025-12", "2026-03"],
+        index=2,
+        label_visibility="collapsed",
+    )
 
 try:
     df = get_aid_by_sector(snapshot)
@@ -50,7 +56,8 @@ df["total_cost_usd"] = pd.to_numeric(
     df["total_cost_usd"], errors="coerce"
 )
 
-st.metric("Sector Categories", len(df))
+with st.container(key="kpi_countries"):
+    st.metric("Sector Categories", len(df))
 
 st.subheader("Top Sectors by Reported Aid Value")
 
@@ -59,18 +66,20 @@ sector_options = ["All Sectors"] + sorted(
     df["sector_name"].dropna().unique().tolist()
 )
 
-selected_sector = st.selectbox(
-    "Select a sector",
-    sector_options,
-)
+with st.container(key="filter_sector", border=True):
+    selected_sector = st.selectbox(
+        "Select a sector",
+        sector_options,
+    )
 
 # Disable number selector when a specific sector is selected
-top_n = st.selectbox(
-    "Number of sectors to display",
-    [10, 20, 30],
-    index=0,
-    disabled=(selected_sector != "All Sectors"),
-)
+with st.container(key="filter_country_limit", border=True):
+    top_n = st.selectbox(
+        "Number of sectors to display",
+        [10, 20, 30],
+        index=0,
+        disabled=(selected_sector != "All Sectors"),
+    )
 
 # Filter data
 chart_df = df.copy()
@@ -94,18 +103,14 @@ chart_df["aid_billions"] = (
     chart_df["total_cost_usd"] / 1_000_000_000
 )
 
-# Alternate between dark and light green
-chart_df = chart_df.copy()
-
-chart_df["bar_color"] = [
-    DARK_GREEN if i % 2 == 0 else LIGHT_GREEN
-    for i in range(len(chart_df))
-]
-
 # Create horizontal bar chart
 chart = (
     alt.Chart(chart_df)
-    .mark_bar()
+    .mark_bar(
+        color=DARK_GREEN,
+        cornerRadiusEnd=5,
+        size=24,
+    )
     .encode(
         x=alt.X(
             "aid_billions:Q",
@@ -115,11 +120,6 @@ chart = (
             "sector_name:N",
             sort=chart_df["sector_name"].tolist(),
             title="Project Sector",
-        ),
-        color=alt.Color(
-            "bar_color:N",
-            scale=None,
-            legend=None,
         ),
         tooltip=[
             alt.Tooltip(
@@ -134,25 +134,53 @@ chart = (
         ],
     )
     .properties(
-        height=max(180, len(chart_df) * 40 + 100),
+        height=max(180, len(chart_df) * 36 + 80),
+    )
+    .configure_view(strokeWidth=0)
+    .configure(
+        font="Inter",
+        axis={
+            "labelFont": "Inter",
+            "titleFont": "Inter",
+            "labelFontSize": 13,
+            "titleFontSize": 13,
+            "labelColor": "#171717",
+            "titleColor": "#171717",
+            "gridColor": "#E8EEE9",
+        },
     )
 )
 
-st.altair_chart(chart, use_container_width=True)
+with st.container(key="sector_chart", border=True):
+    st.altair_chart(chart, use_container_width=True)
 
 st.subheader("All Project Sectors")
 
-st.dataframe(
-    df[["sector_name", "record_count", "total_cost_usd"]].rename(
-        columns={
-            "sector_name": "Project Sector",
-            "record_count": "Project Records",
-            "total_cost_usd": "Reported Aid (USD)",
-        }
-    ),
-    hide_index=True,
-    use_container_width=True,
-)
+with st.container(key="beneficiary_table", border=True):
+    st.dataframe(
+        df[["sector_name", "record_count", "total_cost_usd"]].rename(
+            columns={
+                "sector_name": "Project Sector",
+                "record_count": "Project Records",
+                "total_cost_usd": "Reported Aid (USD)",
+            }
+        ),
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "Project Sector": st.column_config.TextColumn(
+                "Project Sector"
+            ),
+            "Project Records": st.column_config.NumberColumn(
+                "Project Records",
+                format="%d",
+            ),
+            "Reported Aid (USD)": st.column_config.NumberColumn(
+                "Reported Aid (USD)",
+                format="dollar",
+            ),
+        },
+    )
 
 st.caption(
     "Source: BigQuery mart. Values represent reported project costs "
