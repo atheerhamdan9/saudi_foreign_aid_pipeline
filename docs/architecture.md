@@ -261,6 +261,23 @@ The current Airflow DAG does not orchestrate this complete cloud sequence end-to
 
 ---
 
+The current Airflow DAG does not orchestrate this complete cloud sequence end-to-end.
+
+### GCS Upload Idempotency
+
+Cloud ingestion uses create-only uploads for the generated raw Parquet object.
+
+- Re-running the same `ingest_date` does not overwrite an existing GCS object.
+- Temporary upload failures use retries with exponential backoff.
+- Concurrent attempts to create the same object are handled safely by reusing the object that already exists.
+
+This makes repeated runs idempotent for the same destination object path.
+
+The limitation is that idempotency is path-based, not content-based. Processing the same data under a different `ingest_date` can create another object, and corrected data cannot automatically replace an existing object at the same path. Such cases require a new path or an explicit replacement/versioning strategy.
+
+---
+
+
 ## Reliability and Data Quality
 
 The platform includes:

@@ -161,7 +161,11 @@ These source fields are normalized during ingestion before being exposed to down
 
 ## Data Engineering Flow
 
-The implemented workflow follows this sequence:
+The platform currently uses two complementary execution paths.
+
+### Local Development Workflow
+
+Apache Airflow orchestrates the local development workflow:
 
 ```text
 Saudi Open Data CSV Snapshots
@@ -184,14 +188,10 @@ Snapshot-scoped Deduplication
          ↓
        DuckDB
          ↓
-        dbt
-         ↓
-BigQuery Analytical Mart
-         ↓
- Streamlit Dashboard
+     dbt (dev)
 ```
 
-Apache Airflow currently orchestrates the local development workflow:
+Airflow coordinates the local workflow through:
 
 ```text
 prepare_run
@@ -201,7 +201,25 @@ ingest_snapshot
 dbt_incremental
 ```
 
-The Google Cloud analytical path is implemented separately using GCS, BigQuery, dbt, and Streamlit.
+### Cloud Analytical Path
+
+The implemented cloud analytical path is separate from the local Airflow workflow:
+
+```text
+Python --cloud
+      ↓
+Google Cloud Storage
+      ↓
+BigQuery Raw
+      ↓
+dbt (BigQuery)
+      ↓
+BigQuery Analytical Mart
+      ↓
+Streamlit Dashboard
+```
+
+The current Airflow DAG does not yet orchestrate this complete cloud path end-to-end.
 
 ---
 
