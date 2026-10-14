@@ -4,16 +4,20 @@ import streamlit as st
 import altair as alt
 from theme import DARK_GREEN, LIGHT_GREEN
 from queries import get_aid_by_donor
+from styles import apply_dashboard_styles
 
+
+apply_dashboard_styles()
 
 st.title("Aid by Donor")
 st.write("Explore reported Saudi foreign aid by donor entity.")
 
-snapshot = st.selectbox(
-    "Select Snapshot",
-    ["2025-10", "2025-12", "2026-03"],
-    index=2,
-)
+with st.container(key="filter_snapshot", border=True):
+    snapshot = st.selectbox(
+        "Select Snapshot",
+        ["2025-10", "2025-12", "2026-03"],
+        index=2,
+    )
 
 try:
     df = get_aid_by_donor(snapshot)
@@ -51,7 +55,8 @@ df["total_cost_usd"] = pd.to_numeric(
     errors="coerce",
 )
 
-st.metric("Donor Categories", len(df))
+with st.container(key="kpi_donor_categories", border=True):
+    st.metric("Donor Categories", len(df))
 
 st.subheader("Top Donors by Reported Aid Value")
 
@@ -60,17 +65,19 @@ donor_options = ["All Donors"] + sorted(
     df["donor_name"].dropna().unique().tolist()
 )
 
-selected_donor = st.selectbox(
-    "Select a donor",
-    donor_options,
-)
+with st.container(key="filter_sector", border=True):
+    selected_donor = st.selectbox(
+        "Select a donor",
+        donor_options,
+    )
 
-top_n = st.selectbox(
-    "Number of donors to display",
-    [5, 10, 20],
-    index=1,
-    disabled=(selected_donor != "All Donors"),
-)
+with st.container(key="filter_country_limit", border=True):
+    top_n = st.selectbox(
+        "Number of donors to display",
+        [5, 10, 20],
+        index=1,
+        disabled=(selected_donor != "All Donors"),
+    )
 
 # Copy data
 chart_df = df.copy()
@@ -95,18 +102,12 @@ chart_df["aid_billions"] = (
     chart_df["total_cost_usd"] / 1_000_000_000
 )
 
-# Alternate between dark and light green
-chart_df = chart_df.copy()
 
-chart_df["bar_color"] = [
-    DARK_GREEN if i % 2 == 0 else LIGHT_GREEN
-    for i in range(len(chart_df))
-]
 
 # Create horizontal bar chart
 chart = (
     alt.Chart(chart_df)
-    .mark_bar()
+    .mark_bar(color="#00843D")
     .encode(
         x=alt.X(
             "aid_billions:Q",
@@ -116,11 +117,6 @@ chart = (
             "donor_name:N",
             sort=chart_df["donor_name"].tolist(),
             title="Donor Entity",
-        ),
-        color=alt.Color(
-            "bar_color:N",
-            scale=None,
-            legend=None,
         ),
         tooltip=[
             alt.Tooltip(
@@ -139,21 +135,23 @@ chart = (
     )
 )
 
-st.altair_chart(chart, use_container_width=True)
+with st.container(key="donor_chart", border=True):
+    st.altair_chart(chart, use_container_width=True)
 
 st.subheader("All Donor Entities")
 
-st.dataframe(
-    df[["donor_name", "record_count", "total_cost_usd"]].rename(
-        columns={
-            "donor_name": "Donor Entity",
-            "record_count": "Project Records",
-            "total_cost_usd": "Reported Aid (USD)",
-        }
-    ),
-    hide_index=True,
-    use_container_width=True,
-)
+with st.container(key="donor_table", border=True):
+    st.dataframe(
+        df[["donor_name", "record_count", "total_cost_usd"]].rename(
+            columns={
+                "donor_name": "Donor Entity",
+                "record_count": "Project Records",
+                "total_cost_usd": "Reported Aid (USD)",
+            }
+        ),
+        hide_index=True,
+        use_container_width=True,
+    )
 
 st.caption(
     "Source: BigQuery mart. Values represent reported project costs "

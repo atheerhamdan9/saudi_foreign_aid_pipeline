@@ -1,23 +1,38 @@
 
 from pathlib import Path
 import altair as alt
-from theme import DARK_GREEN, LIGHT_GREEN
+from theme import DARK_GREEN
 import pandas as pd
 import streamlit as st
 
 from queries import get_top_beneficiary_countries
+from styles import apply_dashboard_styles
 
+
+apply_dashboard_styles()
 
 st.title("All Beneficiary Countries")
 
 st.write("Explore all beneficiary countries by snapshot.")
 
-snapshot = st.selectbox(
-    "Select Snapshot",
-    ["2025-10", "2025-12", "2026-03"],
-    index=2,
-)
+with st.container(key="filter_snapshot", border=True):
+    st.markdown(
+        ":material/calendar_month: **Select Snapshot**"
+    )
+    snapshot = st.selectbox(
+        "Select Snapshot",
+        ["2025-10", "2025-12", "2026-03"],
+        index=2,
+        format_func=lambda value: value,
+        label_visibility="collapsed",
+    )
 
+with st.container(key="filter_country", border=True):
+    search = st.text_input(
+        "Search for a country",
+        placeholder="Enter country name...",
+        icon=":material/search:",
+    )
 # Load English country names
 csv_path = Path(__file__).resolve().parents[1] / "country_names.csv"
 
@@ -39,6 +54,9 @@ except Exception:
     )
     st.stop()
 
+if df.empty:
+    st.warning("No data available for the selected snapshot.")
+    st.stop()
 # Translate country names
 df["country_name"] = df["dimension_value"].map(country_names)
 
@@ -53,7 +71,6 @@ if missing:
     st.stop()
 
 # Search using English names
-search = st.text_input("Search for a country")
 
 if search:
     df = df[
@@ -61,22 +78,70 @@ if search:
         .str.contains(search, case=False, na=False, regex=False)
     ]
 
-st.metric("Country Categories", len(df))
+# Prepare KPI values
+df["record_count"] = pd.to_numeric(
+    df["record_count"], errors="coerce"
+).fillna(0)
+
+df["total_cost_usd"] = pd.to_numeric(
+    df["total_cost_usd"], errors="coerce"
+).fillna(0)
+
+country_count = len(df)
+total_records = int(df["record_count"].sum())
+total_aid = df["total_cost_usd"].sum()
+
+col1, col2, col3 = st.columns(3, gap="medium")
+
+with col1:
+    with st.container(key="kpi_total", border=True):
+        st.metric(
+            "Matching Countries" if search.strip() else "Beneficiary Countries",
+            f"{country_count:,}",
+        )
+
+with col2:
+    with st.container(key="kpi_categories", border=True):
+        st.metric(
+            "Project Records",
+            f"{total_records:,}",
+        )
+
+with col3:
+    with st.container(key="kpi_top", border=True):
+        st.metric(
+            "Reported Aid (USD)",
+            f"${total_aid / 1_000_000_000:,.2f}B",
+        )
 
 # Display all countries in English
-st.dataframe(
-    df[
-        ["country_name", "record_count", "total_cost_usd"]
-    ].rename(
-        columns={
-            "country_name": "Beneficiary Country",
-            "record_count": "Project Records",
-            "total_cost_usd": "Reported Aid (USD)",
-        }
-    ),
-    use_container_width=True,
-    hide_index=True,
-)
+with st.container(key="beneficiary_table", border=True):
+    st.dataframe(
+        df[
+            ["country_name", "record_count", "total_cost_usd"]
+        ].rename(
+            columns={
+                "country_name": "Beneficiary Country",
+                "record_count": "Project Records",
+                "total_cost_usd": "Reported Aid (USD)",
+            }
+        ),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Beneficiary Country": st.column_config.TextColumn(
+                "Beneficiary Country"
+            ),
+            "Project Records": st.column_config.NumberColumn(
+                "Project Records",
+                format="%d",
+            ),
+            "Reported Aid (USD)": st.column_config.NumberColumn(
+                "Reported Aid (USD)",
+                format="$%,.2f",
+            ),
+        },
+    )
 
 st.caption(
     "Data source: BigQuery mart. "
@@ -84,14 +149,15 @@ st.caption(
     "Reported costs are not confirmed disbursements."
 )
 
-st.subheader("Top Beneficiary Countries")
+with st.container(key="filter_country_limit", border=True):
+    top_n = st.selectbox(
+        "Number of countries to display",
+        [10, 20, 30],
+        index=0,
+        disabled=bool(search.strip()),
+    )
 
-top_n = st.selectbox(
-    "Number of countries to display",
-    [10, 20, 30],
-    index=0,
-    disabled=bool(search.strip()),
-)
+st.subheader("Top Beneficiary Countries")
 
 chart_df = df.copy()
 
@@ -111,16 +177,10 @@ chart_df["aid_billions"] = (
     chart_df["total_cost_usd"] / 1_000_000_000
 )
 
-# Alternate between dark and light green
-chart_df["bar_color"] = [
-    DARK_GREEN if i % 2 == 0 else LIGHT_GREEN
-    for i in range(len(chart_df))
-]
-
 # Create horizontal bar chart
 chart = (
     alt.Chart(chart_df)
-    .mark_bar()
+    .mark_bar(color=DARK_GREEN, cornerRadiusEnd=5, size=24)
     .encode(
         x=alt.X(
             "aid_billions:Q",
@@ -130,11 +190,6 @@ chart = (
             "country_name:N",
             sort=chart_df["country_name"].tolist(),
             title="Beneficiary Country",
-        ),
-        color=alt.Color(
-            "bar_color:N",
-            scale=None,
-            legend=None,
         ),
         tooltip=[
             alt.Tooltip("country_name:N", title="Country"),
@@ -146,8 +201,22 @@ chart = (
         ],
     )
     .properties(
-        height=max(180, len(chart_df) * 40 + 100),
+        height=max(180, len(chart_df) * 36 + 80),
+    )
+    .configure_view(strokeWidth=0)
+    .configure(
+        font="Inter",
+        axis={
+            "labelFont": "Inter",
+            "titleFont": "Inter",
+            "labelFontSize": 12,
+            "titleFontSize": 13,
+            "labelColor": "#171717",
+            "titleColor": "#171717",
+            "gridColor": "#E8EEE9",
+        },
     )
 )
 
-st.altair_chart(chart, use_container_width=True)
+with st.container(key="beneficiary_chart", border=True):
+    st.altair_chart(chart, use_container_width=True)
