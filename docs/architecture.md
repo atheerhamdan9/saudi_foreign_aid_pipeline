@@ -1,120 +1,334 @@
-# Saudi Foreign Aid Pipeline — Architecture
+# Saudi Foreign Aid Data Analytics Platform — Architecture
 
 ## Overview
 
-The Saudi Foreign Aid pipeline processes three historical CSV snapshots using a batch-oriented workflow. The local processing path uses Python, Pandas, and DuckDB to standardize Arabic source fields, preserve numbered raw records, clean and validate records, and generate analytical outputs.
+The Saudi Foreign Aid Data Analytics Platform transforms overlapping Saudi foreign aid CSV releases into validated, standardized, snapshot-aware analytical datasets.
 
-A cloud ingestion component uploads the generated raw Parquet file to Google Cloud Storage (GCS). The local and cloud paths are documented separately below so that the architecture does not imply that all downstream cloud components are orchestrated together.
+The platform uses a batch-oriented architecture with two complementary paths:
+
+- **Local development path:** Airflow, Python/Pandas, DuckDB, and dbt.
+- **Cloud analytical path:** Google Cloud Storage, BigQuery, dbt, and Streamlit.
+
+The system preserves raw records, validates incoming data, quarantines invalid records, removes standardized exact duplicates within each snapshot, and produces reusable analytical models.
+
+Historical releases are treated as overlapping snapshots and are analyzed independently rather than summed together.
+
+---
 
 ## Architecture Diagram
 
 ```mermaid
-flowchart TD
-    A["Source A CSV snapshots"]
-    B["Local raw files"]
-    C["Python Pipeline CLI: read and standardize columns"]
-    D["Assign sequential record numbers"]
-    E["DuckDB: raw_source_a_records"]
-    F["Clean and validate: remove exact duplicates within each snapshot"]
-    G["DuckDB: cleaned_source_a_records"]
-    H["DuckDB: fct_records_daily"]
-    I["Cleaned Parquet"]
-    J["Metrics CSV"]
-    K["Business stakeholder"]
-    L["Combined raw Parquet"]
-    M["GCS: raw/source_a/ingest_date=YYYY-MM-DD/"]
+flowchart LR
+
+    subgraph SOURCE["1 · Data Source"]
+        A["Saudi Open Data<br/>CSV Snapshots<br/>25M10 · 25M12 · 26M03"]
+    end
+
+    subgraph ORCH["2 · Local Orchestration"]
+        B["Apache Airflow"]
+        B1["prepare_run"]
+        B2["ingest_snapshot"]
+        B3["dbt_incremental"]
+
+        B --> B1 --> B2 --> B3
+    end
+
+    subgraph PROCESS["3 · Processing & Data Quality"]
+        C1["Contract & Source<br/>Validation"]
+        C2["Schema<br/>Standardization"]
+        C3["Assign record +<br/>snapshot_month"]
+        C4["Record Validation"]
+        C5["Cleaning &<br/>Deduplication"]
+        CQ["Quarantine"]
+
+        C1 --> C2 --> C3 --> C4
+        C4 -->|"Valid"| C5
+        C4 -->|"Invalid"| CQ
+    end
+
+    subgraph LOCAL["4 · Local Development"]
+        D1["DuckDB<br/>Raw"]
+        D2["DuckDB<br/>Clean"]
+        D3["DuckDB<br/>Quarantine"]
+        D4["dbt dev"]
+        D5["Analytical Mart"]
+    end
+
+    subgraph CLOUD["5 · Cloud Analytics"]
+        E1["Raw Parquet"]
+        E2["Google Cloud Storage"]
+        E3["BigQuery Raw"]
+        E4["dbt BigQuery"]
+        E5["BigQuery Mart"]
+    end
+
+    subgraph SERVING["6 · Serving"]
+        F["Streamlit Dashboard"]
+    end
+
+    subgraph REL["7 · Reliability"]
+        G1["GitHub Actions"]
+        G2["pytest + dbt Tests + Ruff"]
+        G3["Docker Healthcheck"]
+        G4["Airflow Retries + Alerts"]
+        G5["Idempotent Re-runs"]
+    end
 
     A --> B
-    B --> C
-    C --> D
-    D --> E
-    D --> F
-    F --> G
-    G --> H
-    G --> I
-    H --> J
-    J --> K
-    C --> L
-    L -->|"Cloud ingestion: create if absent"| M
+    B2 --> C1
+
+    C3 --> D1
+    C5 --> D2
+    CQ --> D3
+    D2 --> D4 --> D5
+
+    C3 -. "Optional --cloud path" .-> E1
+    E1 --> E2 -->|"BigQuery loader"| E3
+    E3 --> E4 --> E5
+    E5 --> F
+
+    G1 --> G2
+    G3 -.-> B
+    G4 -.-> B
+    G5 -.-> B
+
+    classDef source fill:#E8F3EE,stroke:#245C47,stroke-width:2px;
+    classDef orch fill:#EAF0F8,stroke:#345A84,stroke-width:2px;
+    classDef process fill:#F6EFE2,stroke:#8A6935,stroke-width:2px;
+    classDef local fill:#EEF0F2,stroke:#59636E,stroke-width:2px;
+    classDef cloud fill:#E8F1FA,stroke:#3F6D98,stroke-width:2px;
+    classDef serving fill:#F1EAF5,stroke:#725786,stroke-width:2px;
+    classDef reliability fill:#F8ECEC,stroke:#8A4D4D,stroke-width:2px;
+
+    class A source;
+    class B,B1,B2,B3 orch;
+    class C1,C2,C3,C4,C5,CQ process;
+    class D1,D2,D3,D4,D5 local;
+    class E1,E2,E3,E4,E5 cloud;
+    class F serving;
+    class G1,G2,G3,G4,G5 reliability;
 ```
 
-The GCS path represents the implemented cloud ingestion step. This diagram does not assert that Airflow, BigQuery, dbt, or Streamlit are already connected to this exact workflow.
+---
 
-## Local Pipeline Implementation
+## Data Flow
 
-The pipeline supports local batch processing using Python, Pandas, and DuckDB. Three historical CSV snapshots are staged in the local raw-data directory and processed through the Python CLI.
+1. Saudi foreign aid CSV snapshots are staged for processing.
+2. Airflow validates the run and detects available snapshot months.
+3. The Python pipeline validates and standardizes the source schema.
+4. Each source row receives a sequential `record` number and `snapshot_month`.
+5. Raw records are preserved for traceability.
+6. Invalid records are routed to quarantine.
+7. Valid records are cleaned and deduplicated within the same snapshot.
+8. Clean records are loaded into DuckDB for local development.
+9. dbt builds the analytical mart.
+10. The cloud path loads data through GCS and BigQuery.
+11. Streamlit queries the BigQuery analytical mart for stakeholder analysis.
 
-The pipeline standardizes source fields, assigns sequential record numbers, preserves raw records, applies the existing duplicate-handling policy, and produces analytical outputs.
+---
 
-## Local Data Flow
+## Data Layers
 
-1. Source CSV files are staged in the local raw-data directory.
-2. The Python CLI reads the files and standardizes the Arabic column names.
-3. The pipeline sorts the snapshots chronologically and assigns a sequential `record` number to each source row before cleaning.
-4. Numbered source rows are preserved in the raw layer in DuckDB.
-5. The pipeline validates and cleans the source fields, removes exact duplicates within each snapshot using the seven source columns, and preserves the original `record` number of each retained row.
-6. Cleaned records are stored in DuckDB and exported to Parquet.
-7. Analytical metrics are aggregated by snapshot, beneficiary country, project sector, donor entity, and project status, then exported to CSV.
+### Raw
 
-## Snapshot Handling
-
-The available source snapshots map to these reporting months:
-
-- `25M10` → `2025-10`
-- `25M12` → `2025-12`
-- `26M03` → `2026-03`
-
-### Ingestion Date vs. Snapshot Month
-
-The pipeline distinguishes between two dates:
-
-- `ingest_date`: The logical date used to organize and track an ingestion run in GCS.
-- `snapshot_month`: The reporting period represented by the original source CSV.
-
-Multiple historical snapshots may be processed during the same ingestion run. The fields serve different purposes and must not be treated as interchangeable.
-
-In the local warehouse workflow, reprocessing a snapshot replaces its existing rows while preserving rows from other snapshots. This behavior is separate from GCS object immutability, described below.
-
-## Local Outputs
-
-- `data/processed/dev.duckdb`: Local analytical warehouse.
-- `data/processed/cleaned_source_a.parquet`: Cleaned records.
-- `data/output/fct_records_daily.csv`: Analytical metrics for stakeholders.
-
-## Google Cloud Integration
-
-The pipeline includes an implemented cloud ingestion component that uploads a generated raw Parquet file to Google Cloud Storage. The uploaded Parquet can contain records from multiple historical snapshots, distinguished by `snapshot_month`.
-
-This GCS object is a generated Parquet dataset; it should not be described as a byte-for-byte archival copy of the original CSV files.
-
-## GCS Ingestion and Idempotency
-
-The cloud ingestion process organizes uploaded raw Parquet files by `ingest_date`.
-
-**GCS object path:**
+Preserves all physical source rows, including duplicates.
 
 ```text
-raw/source_a/ingest_date=YYYY-MM-DD/raw_source_a.parquet
+raw_source_a_records
 ```
 
-### Idempotency Strategy
+### Clean
 
-- Repeated runs targeting the same GCS object path reuse the existing object rather than uploading a second copy to that path.
-- Existing objects are protected from overwrites through create-only upload behavior.
-- Temporary cloud failures are handled using retries with exponential backoff.
-- Concurrent attempts to create the same object are handled by reusing the object created by another run.
-- Scheduled retries, including future Airflow retries, should use the same logical `ingest_date`.
-- `snapshot_month` remains available to identify historical source snapshots.
-- Existing record-numbering and duplicate-handling policies are unchanged by the cloud ingestion feature.
+Contains validated, standardized, snapshot-scoped deduplicated records.
 
-### Limitations
+```text
+cleaned_source_a_records
+```
 
-- Idempotency applies to the same destination object path, not to identical data uploaded under different ingestion dates.
-- Processing the same data with a different `ingest_date` may create another GCS object.
-- If source data changes after an object has been created for a particular ingestion date, that existing object is not automatically replaced.
-- Reprocessing changed data for an existing ingestion date requires an explicit versioning or replacement strategy.
-- This ingestion policy does not, by itself, guarantee deduplication in downstream warehouse tables or dbt models.
+### Quarantine
 
-## Downstream Components and Orchestration
+Stores invalid records with quality metadata.
 
-BigQuery, dbt, Airflow, and Streamlit are part of the broader project work. Their connections, scheduling behavior, and deployment status should be documented against the corresponding merged implementations. This document does not assume that the GCS ingestion step is already orchestrated end-to-end through those components.
+```text
+quarantined_source_a_records
+```
+
+Quarantined rows include:
+
+```text
+rejection_reason
+quarantined_at
+```
+
+---
+
+## Snapshot and Duplicate Strategy
+
+The project currently processes three historical snapshots:
+
+| Source Release | Snapshot Month |
+|---|---|
+| `25M10` | `2025-10` |
+| `25M12` | `2025-12` |
+| `26M03` | `2026-03` |
+
+The source does not provide a reliable unique project ID.
+
+The platform therefore uses a conservative deduplication strategy:
+
+- text and cost fields are standardized first,
+- exact standardized duplicates are removed only within the same `snapshot_month`,
+- identical records appearing in different snapshots are preserved,
+- raw records remain unchanged,
+- snapshots are never summed together as independent aid activity.
+
+---
+
+## Analytical Modeling
+
+dbt supports two targets:
+
+```text
+dev       → DuckDB
+bigquery  → BigQuery
+```
+
+The primary analytical mart is:
+
+```text
+fct_records_by_snapshot
+```
+
+Its grain is:
+
+```text
+snapshot_month
++ dimension_type
++ dimension_value
+```
+
+Supported analytical dimensions:
+
+- `beneficiary_country`
+- `project_sector`
+- `project_donor`
+- `project_status`
+
+Metrics:
+
+- `record_count`
+- `total_cost_usd`
+
+---
+
+## Local and Cloud Paths
+
+### Local Development Path
+
+Airflow currently orchestrates:
+
+```text
+CSV
+→ Python Pipeline
+→ DuckDB
+→ dbt dev
+```
+
+The Airflow DAG contains:
+
+```text
+prepare_run
+    ↓
+ingest_snapshot
+    ↓
+dbt_incremental
+```
+
+### Cloud Analytical Path
+
+The implemented cloud path is:
+
+```text
+Python --cloud
+→ GCS
+→ BigQuery Raw
+→ dbt BigQuery
+→ BigQuery Analytical Mart
+→ Streamlit
+```
+
+The current Airflow DAG does not orchestrate this complete cloud sequence end-to-end.
+
+---
+
+The current Airflow DAG does not orchestrate this complete cloud sequence end-to-end.
+
+### GCS Upload Idempotency
+
+Cloud ingestion uses create-only uploads for the generated raw Parquet object.
+
+- Re-running the same `ingest_date` does not overwrite an existing GCS object.
+- Temporary upload failures use retries with exponential backoff.
+- Concurrent attempts to create the same object are handled safely by reusing the object that already exists.
+
+This makes repeated runs idempotent for the same destination object path.
+
+The limitation is that idempotency is path-based, not content-based. Processing the same data under a different `ingest_date` can create another object, and corrected data cannot automatically replace an existing object at the same path. Such cases require a new path or an explicit replacement/versioning strategy.
+
+---
+
+
+## Reliability and Data Quality
+
+The platform includes:
+
+- Contract structure validation
+- Source schema validation
+- Quarantine handling
+- Snapshot-scoped deduplication
+- Airflow retries with exponential backoff
+- Email failure alerts
+- Docker Airflow healthcheck
+- GitHub Actions CI
+- pytest
+- dbt tests
+- Ruff
+- Idempotent pipeline re-runs
+
+Validated local results:
+
+| Layer | Rows |
+|---|---:|
+| Raw | 25,588 |
+| Clean | 23,422 |
+| Quarantine | 0 |
+| Analytical Mart | 702 |
+
+---
+
+## Dashboard
+
+The Streamlit dashboard reads from the BigQuery analytical mart and answers:
+
+1. Which beneficiary countries receive the highest reported aid value?
+2. Which sectors receive the largest reported aid allocations?
+3. Which donor entities contribute the most reported aid?
+4. How are project records distributed by status?
+
+Every dashboard query filters by `snapshot_month` to avoid combining overlapping releases incorrectly.
+
+---
+
+## Current Architecture Boundaries
+
+The current project is intentionally batch-oriented.
+
+It does not include:
+
+- real-time streaming,
+- machine-learning prediction,
+- cross-release project identity matching,
+- full cloud-native orchestration,
+- infrastructure provisioning through Terraform.
+
+For larger datasets, more transformation logic could be moved from Pandas to SQL-native processing in DuckDB or BigQuery.
