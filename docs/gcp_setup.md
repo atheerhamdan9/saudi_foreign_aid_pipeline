@@ -44,3 +44,11 @@ These resources are shared by the project and should not be recreated:
 - GCS bucket: `saudi-foreign-aid-raw-data`
 - BigQuery dataset: `saudi_aid_raw`
 - BigQuery dataset: `saudi_aid_dbt_dev`
+
+## Runtime Security Notes
+
+- Cloud runtimes should use the configured service account through Application Default Credentials (ADC).
+- Do not create or commit service account JSON keys.
+- Secrets such as SMTP credentials must be provided through environment variables or a managed secret store.
+- The `.env` file is local-only and must remain excluded from Git.
+- Cloud permissions should remain scoped to only the resources required by the pipeline.
